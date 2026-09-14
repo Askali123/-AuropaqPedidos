@@ -1,0 +1,35 @@
+# .NET (backend)
+bin/
+obj/
+*.user
+*.suo
+.vs/
+
+# Node (frontend) — frontend/.gitignore ya cubre node_modules/dist localmente;
+# se repite aquí por si algo corre fuera de esa carpeta.
+node_modules/
+dist/
+dist-ssr/
+
+# Logs
+*.log
+npm-debug.log*
+
+# Editor / OS
+.vscode/*
+!.vscode/extensions.json
+.idea/
+.DS_Store
+Thumbs.db
+
+# Herramientas locales (caché/estado de sesión, no parte del código del proyecto)
+.claude/
+
+# Secretos: nunca deben versionarse (CLAUDE.md / docs/06-seguridad.md §27/§51).
+# El proyecto usa `dotnet user-secrets` para Jwt:Key en desarrollo (se guarda fuera
+# del repositorio); esto es una red de seguridad adicional por si algo cae aquí.
+*.env
+.env.local
+.env.*.local
+appsettings.*.local.json
+secrets.json

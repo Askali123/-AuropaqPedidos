@@ -1,0 +1,26 @@
+<Project Sdk="Microsoft.NET.Sdk.Web">
+
+  <ItemGroup>
+    <ProjectReference Include="..\Application\AuropaqPedidos.Application.csproj" />
+    <ProjectReference Include="..\Infrastructure\AuropaqPedidos.Infrastructure.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Microsoft.AspNetCore.Authentication.JwtBearer" Version="10.0.12" />
+    <PackageReference Include="Microsoft.EntityFrameworkCore.Design" Version="10.0.12">
+      <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
+      <PrivateAssets>all</PrivateAssets>
+    </PackageReference>
+    <PackageReference Include="Microsoft.AspNetCore.OpenApi" Version="10.0.12" />
+  </ItemGroup>
+
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <!-- TASK-015: permite `dotnet user-secrets set Jwt:Key ...` en desarrollo local, sin que el
+         secreto quede en ningún archivo del repositorio (06-seguridad.md §27/§50). -->
+    <UserSecretsId>auropaqpedidos-api-dev</UserSecretsId>
+  </PropertyGroup>
+
+</Project>
