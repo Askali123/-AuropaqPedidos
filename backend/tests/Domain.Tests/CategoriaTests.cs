@@ -35,4 +35,28 @@ public class CategoriaTests
         categoria.Activar();
         Assert.True(categoria.Activo);
     }
+
+    [Fact]
+    public void ActualizarDatos_cambia_nombre_y_descripcion_sin_afectar_el_estado()
+    {
+        var categoria = new Categoria(1, "Aseo", "Original");
+        categoria.Desactivar();
+
+        categoria.ActualizarDatos("Aseo y limpieza", "Descripción nueva");
+
+        Assert.Equal("Aseo y limpieza", categoria.Nombre);
+        Assert.Equal("Descripción nueva", categoria.Descripcion);
+        Assert.False(categoria.Activo);
+    }
+
+    [Theory]
+    [InlineData("")]
+    [InlineData("   ")]
+    [InlineData(null)]
+    public void ActualizarDatos_no_permite_nombre_vacio(string? nombreInvalido)
+    {
+        var categoria = new Categoria(1, "Aseo");
+
+        Assert.Throws<ReglaDeNegocioException>(() => categoria.ActualizarDatos(nombreInvalido!, null));
+    }
 }

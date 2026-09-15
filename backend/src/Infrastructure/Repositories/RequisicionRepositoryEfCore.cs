@@ -27,6 +27,18 @@ public sealed class RequisicionRepositoryEfCore : IRequisicionRepository
             .Where(r => EF.Property<int>(r, "PeriodoId") == periodoId && r.Estado == RequisicionEstado.Aprobada)
             .ToList();
 
+    public IReadOnlyList<Requisicion> ObtenerPorEmpresa(int empresaId) =>
+        Consulta()
+            .Where(r => EF.Property<int>(r, "EmpresaId") == empresaId)
+            .OrderByDescending(r => r.FechaCreacion)
+            .ToList();
+
+    public IReadOnlyList<Requisicion> ObtenerEnRevisionPorEmpresa(int empresaId) =>
+        Consulta()
+            .Where(r => EF.Property<int>(r, "EmpresaId") == empresaId && r.Estado == RequisicionEstado.EnRevision)
+            .OrderBy(r => r.FechaEnvio)
+            .ToList();
+
     // Se asume una única instancia de AuropaqPedidosDbContext por caso de uso (ciclo de vida
     // "Scoped" registrado en DI): un Requisicion recién creado con `new` nunca fue rastreado
     // (Detached) y debe agregarse; uno obtenido antes con ObtenerPorId/ObtenerPorEmpresaYPeriodo

@@ -7,6 +7,7 @@ using AuropaqPedidos.Application.PedidosProveedor.Dtos;
 using AuropaqPedidos.Domain.Entities;
 using AuropaqPedidos.Domain.Enums;
 using AuropaqPedidos.Domain.Exceptions;
+using Microsoft.Extensions.Logging.Abstractions;
 
 namespace Application.Tests;
 
@@ -27,6 +28,7 @@ public class AnularEntregaUseCaseTests
         public FakeProveedorRepository Proveedores { get; } = new();
         public FakeGeneradorDeIdentificadores Ids { get; } = new();
         public FakeTransaccionDeEntrega Transaccion { get; } = new();
+        public FakeAuditoriaRepository Auditoria { get; } = new();
 
         public Periodo Periodo { get; } = new(
             1, 2026, 9,
@@ -42,10 +44,10 @@ public class AnularEntregaUseCaseTests
             Proveedores.Agregar(Proveedor);
         }
 
-        public AnularEntregaUseCase AnularUseCase() => new(Entregas, Pedidos, Transaccion);
+        public AnularEntregaUseCase AnularUseCase() => new(Entregas, Pedidos, Transaccion, NullLogger<AnularEntregaUseCase>.Instance);
         public AgregarDetalleEntregaUseCase AgregarDetalleUseCase() => new(Entregas, Pedidos, Ids, Transaccion);
-        public CerrarPedidoProveedorUseCase CerrarUseCase() => new(Pedidos);
-        public CancelarPedidoProveedorUseCase CancelarUseCase() => new(Pedidos);
+        public CerrarPedidoProveedorUseCase CerrarUseCase() => new(Pedidos, NullLogger<CerrarPedidoProveedorUseCase>.Instance);
+        public CancelarPedidoProveedorUseCase CancelarUseCase() => new(Pedidos, NullLogger<CancelarPedidoProveedorUseCase>.Instance);
 
         // Pedido ENVIADO con un único DetallePedidoProveedor de "cantidadPedida" unidades.
         public (PedidoProveedorResponse Pedido, int DetallePedidoId) CrearPedidoEnviado(int cantidadPedida = 100)
@@ -65,7 +67,8 @@ public class AnularEntregaUseCaseTests
             consolidacion.AgregarAsignacion(Ids.Siguiente(), Ids.Siguiente(), requisicion, detalleReq, cantidadPedida);
             Consolidaciones.Guardar(consolidacion);
 
-            var pedidoUseCase = new CrearPedidoProveedorUseCase(Pedidos, Consolidaciones, Proveedores, Ids);
+            var pedidoUseCase = new CrearPedidoProveedorUseCase(
+                Pedidos, Consolidaciones, Proveedores, Auditoria, Ids, NullLogger<CrearPedidoProveedorUseCase>.Instance);
             var pedido = pedidoUseCase.Ejecutar(Fecha, new CrearPedidoProveedorRequest(consolidacion.Id, Proveedor.Id, "PO-001"));
 
             var detallePedidoUseCase = new AgregarDetallePedidoProveedorUseCase(Pedidos, Ids);
@@ -77,7 +80,8 @@ public class AnularEntregaUseCaseTests
         }
 
         public EntregaResponse CrearEntrega(int pedidoId, string numeroRemision) =>
-            new CrearEntregaUseCase(Entregas, Pedidos, Ids).Ejecutar(Fecha, new CrearEntregaRequest(pedidoId, numeroRemision));
+            new CrearEntregaUseCase(Entregas, Pedidos, Auditoria, Ids, NullLogger<CrearEntregaUseCase>.Instance)
+                .Ejecutar(Fecha, new CrearEntregaRequest(pedidoId, numeroRemision));
 
         public PedidoProveedorEstado EstadoActualDelPedido(int pedidoId) => Pedidos.ObtenerPorId(pedidoId)!.Estado;
     }

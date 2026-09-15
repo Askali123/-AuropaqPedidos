@@ -13,5 +13,12 @@ public interface IRequisicionRepository
     // requisiciones APROBADAS de ese periodo (de cualquier empresa).
     IReadOnlyList<Requisicion> ObtenerAprobadasPorPeriodo(int periodoId);
 
+    // TASK-031/032, 05-api.md §17.1/§54.6: "mis requisiciones" — alcance por empresa (mismo
+    // criterio ya establecido para enviar/aprobar, RN-058), sin filtro de estado.
+    IReadOnlyList<Requisicion> ObtenerPorEmpresa(int empresaId);
+
+    // TASK-031, 05-api.md §24.1/§54.6: bandeja de revisión — mismo alcance por empresa.
+    IReadOnlyList<Requisicion> ObtenerEnRevisionPorEmpresa(int empresaId);
+
     void Guardar(Requisicion requisicion);
 }

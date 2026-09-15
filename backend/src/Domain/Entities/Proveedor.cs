@@ -32,4 +32,17 @@ public sealed class Proveedor
     public void Activar() => Activo = true;
 
     public void Desactivar() => Activo = false;
+
+    // TASK-018, 05-api.md §29. Activo se cambia con Activar()/Desactivar(), no aquí.
+    public void ActualizarDatos(string nombre, string? nit = null, string? contacto = null, string? telefono = null, string? correo = null)
+    {
+        if (string.IsNullOrWhiteSpace(nombre))
+            throw new ReglaDeNegocioException("El nombre del proveedor es obligatorio.");
+
+        Nombre = nombre;
+        Nit = nit;
+        Contacto = contacto;
+        Telefono = telefono;
+        Correo = correo;
+    }
 }

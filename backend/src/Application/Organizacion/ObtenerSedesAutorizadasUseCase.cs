@@ -25,7 +25,9 @@ public sealed class ObtenerSedesAutorizadasUseCase
             ?? throw new RecursoNoEncontradoException($"El usuario {usuarioId} no existe.");
 
         return _usuariosSedes.ObtenerPorUsuario(usuarioId)
-            .Select(us => new SedeResponse(us.Sede.Id, us.Sede.Nombre, us.Sede.Activo))
+            .Select(us => new SedeResponse(
+                us.Sede.Id, us.Sede.Nombre, us.Sede.Direccion, us.Sede.Ciudad,
+                us.Sede.Departamento, us.Sede.Telefono, us.Sede.Contacto, us.Sede.Activo))
             .ToList();
     }
 }

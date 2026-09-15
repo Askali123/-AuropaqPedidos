@@ -19,4 +19,15 @@ public sealed class EmpresaRepositoryEfCore : IEmpresaRepository
 
     public IReadOnlyList<Empresa> ObtenerTodas() =>
         _contexto.Empresas.OrderBy(e => e.Nombre).ToList();
+
+    // Mismo patrón que UsuarioRepositoryEfCore.Guardar: una Empresa recién creada con `new` nunca
+    // fue rastreada (Detached) y debe agregarse; una ya cargada por ObtenerPorId ya está Tracked,
+    // así que solo hace falta SaveChanges para persistir la mutación.
+    public void Guardar(Empresa empresa)
+    {
+        if (_contexto.Entry(empresa).State == EntityState.Detached)
+            _contexto.Empresas.Add(empresa);
+
+        _contexto.SaveChanges();
+    }
 }

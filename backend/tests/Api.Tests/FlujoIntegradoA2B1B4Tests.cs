@@ -20,8 +20,6 @@ namespace Api.Tests;
 // Api, contra la misma base de datos real.
 public sealed class FlujoIntegradoA2B1B4Tests : IClassFixture<ApiWebApplicationFactory>
 {
-    private const string UsuarioId = "5";
-
     private readonly ApiWebApplicationFactory _factory;
     private readonly HttpClient _cliente;
 
@@ -193,51 +191,50 @@ public sealed class FlujoIntegradoA2B1B4Tests : IClassFixture<ApiWebApplicationF
 
     private async Task<int> CrearYAprobarRequisicionAsync(int empresaId, int periodoId, int productoId, int sedeId, int cantidad)
     {
-        // TASK-016: /enviar y /aprobar exigen JWT + permiso (REQUISICION_ENVIAR/APROBAR).
-        // TASK-050: además exigen alcance (misma Empresa) — este método se llama una vez por
-        // empresa (empresa1Id/empresa2Id), así que "numero" se deriva de "empresaId" para que
-        // cada empresa tenga su propio Usuario/token autorizado (nunca el mismo Usuario para dos
-        // empresas distintas).
+        // RN-059/060 (punto 8): todas las rutas de Requisición exigen JWT + permiso + alcance
+        // por empresa — este método se llama una vez por empresa (empresa1Id/empresa2Id), así
+        // que "numero" se deriva de "empresaId" para que cada empresa tenga su propio
+        // Usuario/token autorizado (nunca el mismo Usuario para dos empresas distintas).
         string token;
         using (var scope = _factory.Services.CreateScope())
         {
             var db = scope.ServiceProvider.GetRequiredService<AuropaqPedidosDbContext>();
             token = await AutorizacionHelper.CrearTokenConPermisosAsync(
-                _factory, db, empresaId, empresaId, "REQUISICION_ENVIAR", "REQUISICION_APROBAR");
+                _factory, db, empresaId, empresaId,
+                "REQUISICION_CREAR", "REQUISICION_ENVIAR", "REQUISICION_APROBAR");
         }
 
         var crear = new HttpRequestMessage(HttpMethod.Post, "/api/v1/requisiciones");
-        crear.Headers.Add("X-Usuario-Id", UsuarioId);
-        crear.Headers.Add("X-Empresa-Id", empresaId.ToString());
+        crear.Headers.Authorization = new AuthenticationHeaderValue("Bearer", token);
         crear.Content = JsonContent.Create(new { periodoId });
         var respuestaCrear = await _cliente.SendAsync(crear);
         Assert.True(respuestaCrear.IsSuccessStatusCode, $"crear: {respuestaCrear.StatusCode} {await respuestaCrear.Content.ReadAsStringAsync()}");
         var requisicionId = (await respuestaCrear.Content.ReadFromJsonAsync<Envoltorio<RequisicionDto>>())!.Data.Id;
 
-        var respuestaDetalle = await _cliente.PostAsJsonAsync(
-            $"/api/v1/requisiciones/{requisicionId}/detalles",
-            new { productoId, cantidadSolicitada = cantidad, observacion = (string?)null });
+        var agregarDetalle = new HttpRequestMessage(HttpMethod.Post, $"/api/v1/requisiciones/{requisicionId}/detalles");
+        agregarDetalle.Headers.Authorization = new AuthenticationHeaderValue("Bearer", token);
+        agregarDetalle.Content = JsonContent.Create(new { productoId, cantidadSolicitada = cantidad, observacion = (string?)null });
+        var respuestaDetalle = await _cliente.SendAsync(agregarDetalle);
         Assert.True(respuestaDetalle.IsSuccessStatusCode, $"detalle: {respuestaDetalle.StatusCode} {await respuestaDetalle.Content.ReadAsStringAsync()}");
         var detalleId = (await respuestaDetalle.Content.ReadFromJsonAsync<Envoltorio<RequisicionDto>>())!.Data.Detalles[0].Id;
 
-        var respuestaDistribucion = await _cliente.PostAsJsonAsync(
-            $"/api/v1/requisiciones/{requisicionId}/detalles/{detalleId}/distribuciones",
-            new { sedeId, cantidad });
+        var distribuir = new HttpRequestMessage(HttpMethod.Post, $"/api/v1/requisiciones/{requisicionId}/detalles/{detalleId}/distribuciones");
+        distribuir.Headers.Authorization = new AuthenticationHeaderValue("Bearer", token);
+        distribuir.Content = JsonContent.Create(new { sedeId, cantidad });
+        var respuestaDistribucion = await _cliente.SendAsync(distribuir);
         Assert.True(respuestaDistribucion.IsSuccessStatusCode, $"distribucion: {respuestaDistribucion.StatusCode} {await respuestaDistribucion.Content.ReadAsStringAsync()}");
 
         var enviar = new HttpRequestMessage(HttpMethod.Post, $"/api/v1/requisiciones/{requisicionId}/enviar");
-        enviar.Headers.Add("X-Usuario-Id", UsuarioId);
         enviar.Headers.Authorization = new AuthenticationHeaderValue("Bearer", token);
         var respuestaEnviar = await _cliente.SendAsync(enviar);
         Assert.True(respuestaEnviar.IsSuccessStatusCode, $"enviar: {respuestaEnviar.StatusCode} {await respuestaEnviar.Content.ReadAsStringAsync()}");
 
         var iniciarRevision = new HttpRequestMessage(HttpMethod.Post, $"/api/v1/requisiciones/{requisicionId}/iniciar-revision");
-        iniciarRevision.Headers.Add("X-Usuario-Id", UsuarioId);
+        iniciarRevision.Headers.Authorization = new AuthenticationHeaderValue("Bearer", token);
         var respuestaRevision = await _cliente.SendAsync(iniciarRevision);
         Assert.True(respuestaRevision.IsSuccessStatusCode, $"revision: {respuestaRevision.StatusCode} {await respuestaRevision.Content.ReadAsStringAsync()}");
 
         var aprobar = new HttpRequestMessage(HttpMethod.Post, $"/api/v1/requisiciones/{requisicionId}/aprobar");
-        aprobar.Headers.Add("X-Usuario-Id", UsuarioId);
         aprobar.Headers.Authorization = new AuthenticationHeaderValue("Bearer", token);
         aprobar.Content = JsonContent.Create(new { observacion = (string?)null });
         var respuestaAprobar = await _cliente.SendAsync(aprobar);

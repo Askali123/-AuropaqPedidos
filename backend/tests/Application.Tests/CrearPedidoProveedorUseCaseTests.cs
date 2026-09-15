@@ -4,6 +4,7 @@ using AuropaqPedidos.Application.PedidosProveedor;
 using AuropaqPedidos.Application.PedidosProveedor.Dtos;
 using AuropaqPedidos.Domain.Entities;
 using AuropaqPedidos.Domain.Exceptions;
+using Microsoft.Extensions.Logging.Abstractions;
 
 namespace Application.Tests;
 
@@ -20,6 +21,7 @@ public class CrearPedidoProveedorUseCaseTests
         public FakeProveedorRepository Proveedores { get; } = new();
         public FakeSedeRepository Sedes { get; } = new();
         public FakeGeneradorDeIdentificadores Ids { get; } = new();
+        public FakeAuditoriaRepository Auditoria { get; } = new();
 
         public Periodo Periodo { get; } = new(
             1, 2026, 9,
@@ -35,7 +37,8 @@ public class CrearPedidoProveedorUseCaseTests
             Proveedores.Agregar(Proveedor);
         }
 
-        public CrearPedidoProveedorUseCase CrearUseCase() => new(Pedidos, Consolidaciones, Proveedores, Ids);
+        public CrearPedidoProveedorUseCase CrearUseCase() =>
+            new(Pedidos, Consolidaciones, Proveedores, Auditoria, Ids, NullLogger<CrearPedidoProveedorUseCase>.Instance);
         public AgregarDetallePedidoProveedorUseCase AgregarDetalleUseCase() => new(Pedidos, Ids);
         public AgregarDistribucionPedidoUseCase AgregarDistribucionUseCase() => new(Pedidos, Sedes, Ids);
 
@@ -78,6 +81,24 @@ public class CrearPedidoProveedorUseCaseTests
         Assert.Equal(escenario.Proveedor.Id, respuesta.ProveedorId);
         Assert.Equal("PO-001", respuesta.NumeroPedido);
         Assert.Empty(respuesta.Detalles);
+    }
+
+    // TASK-056: "creación de pedido" es uno de los 6 ejemplos documentados en
+    // 04-base-datos.md §33. usuarioId es null aquí porque este endpoint todavía no exige JWT.
+    [Fact]
+    public void Crear_un_pedido_registra_un_evento_de_auditoria()
+    {
+        var escenario = new Escenario();
+        var (consolidacion, _) = escenario.CrearConsolidacionConUnDetalle(escenario.CrearProducto("Papel higiénico"), 85);
+
+        var respuesta = escenario.CrearUseCase().Ejecutar(
+            Fecha, new CrearPedidoProveedorRequest(consolidacion.Id, escenario.Proveedor.Id, "PO-001"));
+
+        var registro = Assert.Single(escenario.Auditoria.Registros);
+        Assert.Equal("PedidoProveedor", registro.Entidad);
+        Assert.Equal(respuesta.Id, registro.EntidadId);
+        Assert.Equal("CREAR", registro.Accion);
+        Assert.Null(registro.UsuarioId);
     }
 
     [Fact]

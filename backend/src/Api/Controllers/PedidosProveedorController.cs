@@ -52,7 +52,7 @@ public sealed class PedidosProveedorController : ControllerBase
     [HttpPost]
     public ActionResult<ApiResponse<PedidoProveedorResponse>> Crear([FromBody] CrearPedidoProveedorRequest request)
     {
-        var resultado = _crear.Ejecutar(DateTime.UtcNow, request);
+        var resultado = _crear.Ejecutar(DateTime.UtcNow, request, IdentidadOpcional.ObtenerUsuarioIdSiAutenticado(User));
         return StatusCode(StatusCodes.Status201Created, ApiResponse<PedidoProveedorResponse>.De(resultado));
     }
 
@@ -106,7 +106,8 @@ public sealed class PedidosProveedorController : ControllerBase
     public ActionResult<ApiResponse<EntregaResponse>> CrearEntrega(int id, [FromBody] CrearEntregaHttpRequest request)
     {
         var resultado = _crearEntrega.Ejecutar(
-            DateTime.UtcNow, new CrearEntregaRequest(id, request.NumeroRemision, request.Observacion));
+            DateTime.UtcNow, new CrearEntregaRequest(id, request.NumeroRemision, request.Observacion),
+            IdentidadOpcional.ObtenerUsuarioIdSiAutenticado(User));
         return StatusCode(StatusCodes.Status201Created, ApiResponse<EntregaResponse>.De(resultado));
     }
 }

@@ -47,4 +47,33 @@ public class SedeTests
         sede.Activar();
         Assert.True(sede.Activo);
     }
+
+    [Fact]
+    public void ActualizarDatos_cambia_los_datos_sin_afectar_la_empresa_ni_el_estado()
+    {
+        var empresa = CrearEmpresa();
+        var sede = new Sede(1, empresa, "Bogotá", direccion: "Calle 1", ciudad: "Bogotá");
+        sede.Desactivar();
+
+        sede.ActualizarDatos("Bogotá Norte", "Calle 100", "Bogotá", "Bogotá D.C.", "6011234567", "Recepción");
+
+        Assert.Equal("Bogotá Norte", sede.Nombre);
+        Assert.Equal("Calle 100", sede.Direccion);
+        Assert.Equal("Bogotá D.C.", sede.Departamento);
+        Assert.Equal("6011234567", sede.Telefono);
+        Assert.Equal("Recepción", sede.Contacto);
+        Assert.Equal(empresa, sede.Empresa);
+        Assert.False(sede.Activo);
+    }
+
+    [Theory]
+    [InlineData("")]
+    [InlineData("   ")]
+    [InlineData(null)]
+    public void ActualizarDatos_no_permite_nombre_vacio(string? nombreInvalido)
+    {
+        var sede = new Sede(1, CrearEmpresa(), "Bogotá");
+
+        Assert.Throws<ReglaDeNegocioException>(() => sede.ActualizarDatos(nombreInvalido!));
+    }
 }

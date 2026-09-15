@@ -1,5 +1,6 @@
 using AuropaqPedidos.Application.PedidosProveedor.Abstracciones;
 using AuropaqPedidos.Application.PedidosProveedor.Dtos;
+using Microsoft.Extensions.Logging;
 
 namespace AuropaqPedidos.Application.PedidosProveedor;
 
@@ -8,10 +9,12 @@ namespace AuropaqPedidos.Application.PedidosProveedor;
 public sealed class CancelarPedidoProveedorUseCase
 {
     private readonly IPedidoProveedorRepository _pedidos;
+    private readonly ILogger<CancelarPedidoProveedorUseCase> _logger;
 
-    public CancelarPedidoProveedorUseCase(IPedidoProveedorRepository pedidos)
+    public CancelarPedidoProveedorUseCase(IPedidoProveedorRepository pedidos, ILogger<CancelarPedidoProveedorUseCase> logger)
     {
         _pedidos = pedidos;
+        _logger = logger;
     }
 
     public PedidoProveedorResponse Ejecutar(int pedidoId)
@@ -21,6 +24,8 @@ public sealed class CancelarPedidoProveedorUseCase
         pedido.Cancelar();
 
         _pedidos.Guardar(pedido);
+
+        _logger.LogInformation("PedidoProveedor {PedidoId} cancelado", pedidoId);
 
         return PedidoProveedorMapper.AResponse(pedido);
     }

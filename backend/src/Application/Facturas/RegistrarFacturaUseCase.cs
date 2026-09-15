@@ -6,6 +6,7 @@ using AuropaqPedidos.Application.PedidosProveedor.Abstracciones;
 using AuropaqPedidos.Application.Requisiciones.Abstracciones;
 using AuropaqPedidos.Domain.Entities;
 using AuropaqPedidos.Domain.Exceptions;
+using Microsoft.Extensions.Logging;
 
 namespace AuropaqPedidos.Application.Facturas;
 
@@ -21,14 +22,17 @@ public sealed class RegistrarFacturaUseCase
     private readonly IProveedorRepository _proveedores;
     private readonly IPedidoProveedorRepository _pedidos;
     private readonly IGeneradorDeIdentificadores _ids;
+    private readonly ILogger<RegistrarFacturaUseCase> _logger;
 
     public RegistrarFacturaUseCase(
-        IFacturaRepository facturas, IProveedorRepository proveedores, IPedidoProveedorRepository pedidos, IGeneradorDeIdentificadores ids)
+        IFacturaRepository facturas, IProveedorRepository proveedores, IPedidoProveedorRepository pedidos,
+        IGeneradorDeIdentificadores ids, ILogger<RegistrarFacturaUseCase> logger)
     {
         _facturas = facturas;
         _proveedores = proveedores;
         _pedidos = pedidos;
         _ids = ids;
+        _logger = logger;
     }
 
     public FacturaResponse Ejecutar(DateTime fechaFactura, RegistrarFacturaRequest request)
@@ -56,6 +60,9 @@ public sealed class RegistrarFacturaUseCase
             observacion: request.Observacion);
 
         _facturas.Guardar(factura);
+
+        _logger.LogInformation(
+            "Factura {FacturaId} registrada (proveedor {ProveedorId}, pedido {PedidoId})", factura.Id, proveedor.Id, pedido.Id);
 
         return FacturaMapper.AResponse(factura);
     }

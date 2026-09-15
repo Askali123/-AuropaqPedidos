@@ -7,15 +7,21 @@ using Microsoft.Extensions.DependencyInjection;
 
 namespace Api.Tests;
 
-// TASK-016/TASK-050. Comportamiento HTTP de autorización (401/403/alcance) contra los dos
-// endpoints reales protegidos (RequisicionesController.Enviar/Aprobar). Usa una Requisición real
-// llevada hasta el punto de poder enviarse/aprobarse (mismo fixture que RequisicionesFlujoTests).
+// TASK-016/TASK-050. Comportamiento HTTP de autorización (401/403/alcance) contra los endpoints
+// reales protegidos de RequisicionesController (Enviar/Aprobar, y desde el punto 8 también
+// Crear/AgregarDetalle/AgregarDistribucion/IniciarRevision). Usa una Requisición real llevada
+// hasta el punto de poder enviarse/aprobarse (mismo fixture que RequisicionesFlujoTests).
 // Desde TASK-050 los tokens de AutorizacionHelper deben pertenecer a la MISMA Empresa que la
 // Requisición bajo prueba (alcance) — cada llamada pasa "escenario.EmpresaId" explícitamente.
+//
+// RN-057: los permisos se resuelven en vivo por usuario en cada request (nunca se cachean en el
+// JWT), así que reutilizar el mismo "numero" (=mismo Usuario) de AutorizacionHelper en dos
+// llamadas distintas ACUMULA permisos sobre ese usuario para el resto del test — nunca los
+// revoca. Por eso el usuario "creador" (que solo necesita REQUISICION_CREAR para construir el
+// fixture) usa un "numero" (+10_000) DISTINTO del usuario cuyo permiso específico se está
+// probando en cada caso.
 public sealed class AutorizacionFlujoTests : IClassFixture<ApiWebApplicationFactory>
 {
-    private const string UsuarioIdNegocio = "5";
-
     private readonly ApiWebApplicationFactory _factory;
     private readonly HttpClient _cliente;
 
@@ -25,37 +31,47 @@ public sealed class AutorizacionFlujoTests : IClassFixture<ApiWebApplicationFact
         _cliente = factory.CreateClient();
     }
 
+    private async Task<string> TokenAsync(int numero, int empresaId, params string[] permisos)
+    {
+        using var scope = _factory.Services.CreateScope();
+        var db = scope.ServiceProvider.GetRequiredService<AuropaqPedidosDbContext>();
+        return await AutorizacionHelper.CrearTokenConPermisosAsync(_factory, db, numero, empresaId, permisos);
+    }
+
+    private static HttpRequestMessage ConToken(HttpMethod metodo, string url, string token)
+    {
+        var solicitud = new HttpRequestMessage(metodo, url);
+        solicitud.Headers.Authorization = new AuthenticationHeaderValue("Bearer", token);
+        return solicitud;
+    }
+
     private async Task<(Escenario escenario, int requisicionId)> RequisicionListaParaEnviarAsync(int numero)
     {
         using var scope = _factory.Services.CreateScope();
         var db = scope.ServiceProvider.GetRequiredService<AuropaqPedidosDbContext>();
         var escenario = await Escenario.CrearAsync(db, numero);
 
-        var crear = new HttpRequestMessage(HttpMethod.Post, "/api/v1/requisiciones");
-        crear.Headers.Add("X-Usuario-Id", UsuarioIdNegocio);
-        crear.Headers.Add("X-Empresa-Id", escenario.EmpresaId.ToString());
+        var tokenCreador = await TokenAsync(numero + 10_000, escenario.EmpresaId, "REQUISICION_CREAR");
+
+        var crear = ConToken(HttpMethod.Post, "/api/v1/requisiciones", tokenCreador);
         crear.Content = JsonContent.Create(new { periodoId = escenario.PeriodoId });
         var respuestaCrear = await _cliente.SendAsync(crear);
         var requisicionId = (await respuestaCrear.Content.ReadFromJsonAsync<Envoltorio<RequisicionDto>>())!.Data.Id;
 
-        var respuestaDetalle = await _cliente.PostAsJsonAsync(
-            $"/api/v1/requisiciones/{requisicionId}/detalles",
-            new { productoId = escenario.ProductoId, cantidadSolicitada = 10, observacion = (string?)null });
+        var agregarDetalle = ConToken(HttpMethod.Post, $"/api/v1/requisiciones/{requisicionId}/detalles", tokenCreador);
+        agregarDetalle.Content = JsonContent.Create(new { productoId = escenario.ProductoId, cantidadSolicitada = 10, observacion = (string?)null });
+        var respuestaDetalle = await _cliente.SendAsync(agregarDetalle);
         var detalleId = (await respuestaDetalle.Content.ReadFromJsonAsync<Envoltorio<RequisicionDto>>())!.Data.Detalles[0].Id;
 
-        await _cliente.PostAsJsonAsync(
-            $"/api/v1/requisiciones/{requisicionId}/detalles/{detalleId}/distribuciones",
-            new { sedeId = escenario.SedeId, cantidad = 10 });
+        var distribuir = ConToken(HttpMethod.Post, $"/api/v1/requisiciones/{requisicionId}/detalles/{detalleId}/distribuciones", tokenCreador);
+        distribuir.Content = JsonContent.Create(new { sedeId = escenario.SedeId, cantidad = 10 });
+        await _cliente.SendAsync(distribuir);
 
         return (escenario, requisicionId);
     }
 
-    private static HttpRequestMessage EnviarRequest(int requisicionId, string usuarioIdNegocio = UsuarioIdNegocio)
-    {
-        var request = new HttpRequestMessage(HttpMethod.Post, $"/api/v1/requisiciones/{requisicionId}/enviar");
-        request.Headers.Add("X-Usuario-Id", usuarioIdNegocio);
-        return request;
-    }
+    private static HttpRequestMessage EnviarRequest(int requisicionId) =>
+        new(HttpMethod.Post, $"/api/v1/requisiciones/{requisicionId}/enviar");
 
     [Fact]
     public async Task Enviar_sin_jwt_devuelve_401()
@@ -83,10 +99,8 @@ public sealed class AutorizacionFlujoTests : IClassFixture<ApiWebApplicationFact
     public async Task Enviar_con_jwt_valido_sin_permiso_devuelve_403()
     {
         var (escenario, requisicionId) = await RequisicionListaParaEnviarAsync(403);
-        using var scope = _factory.Services.CreateScope();
-        var db = scope.ServiceProvider.GetRequiredService<AuropaqPedidosDbContext>();
-        // Token válido, misma empresa (alcance OK), pero sin ningún Permiso asignado (0 códigos).
-        var token = await AutorizacionHelper.CrearTokenConPermisosAsync(_factory, db, 403, escenario.EmpresaId);
+        // Token válido, misma empresa (alcance OK), pero sin REQUISICION_ENVIAR (0 códigos).
+        var token = await TokenAsync(403, escenario.EmpresaId);
 
         var solicitud = EnviarRequest(requisicionId);
         solicitud.Headers.Authorization = new AuthenticationHeaderValue("Bearer", token);
@@ -99,10 +113,7 @@ public sealed class AutorizacionFlujoTests : IClassFixture<ApiWebApplicationFact
     public async Task Enviar_con_jwt_valido_y_permiso_ejecuta_el_endpoint()
     {
         var (escenario, requisicionId) = await RequisicionListaParaEnviarAsync(404);
-        using var scope = _factory.Services.CreateScope();
-        var db = scope.ServiceProvider.GetRequiredService<AuropaqPedidosDbContext>();
-        var token = await AutorizacionHelper.CrearTokenConPermisosAsync(
-            _factory, db, 404, escenario.EmpresaId, "REQUISICION_ENVIAR");
+        var token = await TokenAsync(404, escenario.EmpresaId, "REQUISICION_ENVIAR");
 
         var solicitud = EnviarRequest(requisicionId);
         solicitud.Headers.Authorization = new AuthenticationHeaderValue("Bearer", token);
@@ -125,12 +136,9 @@ public sealed class AutorizacionFlujoTests : IClassFixture<ApiWebApplicationFact
             otraEmpresa = await Escenario.CrearAsync(dbOtraEmpresa, 407);
         }
 
-        using var scope = _factory.Services.CreateScope();
-        var db = scope.ServiceProvider.GetRequiredService<AuropaqPedidosDbContext>();
         // Permiso correcto, pero el token pertenece a otraEmpresa.EmpresaId, no a
         // escenario.EmpresaId (dueña real de la Requisición) — debe rechazarse por alcance.
-        var token = await AutorizacionHelper.CrearTokenConPermisosAsync(
-            _factory, db, 406, otraEmpresa.EmpresaId, "REQUISICION_ENVIAR");
+        var token = await TokenAsync(406, otraEmpresa.EmpresaId, "REQUISICION_ENVIAR");
 
         var solicitud = EnviarRequest(requisicionId);
         solicitud.Headers.Authorization = new AuthenticationHeaderValue("Bearer", token);
@@ -147,11 +155,10 @@ public sealed class AutorizacionFlujoTests : IClassFixture<ApiWebApplicationFact
     public async Task Enviar_con_jwt_valido_permiso_y_alcance_pero_usuario_inactivo_devuelve_403()
     {
         var (escenario, requisicionId) = await RequisicionListaParaEnviarAsync(408);
+        var token = await TokenAsync(408, escenario.EmpresaId, "REQUISICION_ENVIAR");
+
         using var scope = _factory.Services.CreateScope();
         var db = scope.ServiceProvider.GetRequiredService<AuropaqPedidosDbContext>();
-        var token = await AutorizacionHelper.CrearTokenConPermisosAsync(
-            _factory, db, 408, escenario.EmpresaId, "REQUISICION_ENVIAR");
-
         var usuario = await db.Usuarios.SingleAsync(u => u.Correo == "autorizacion.tests.408@auropaq.com");
         usuario.Desactivar(DateTime.UtcNow);
         await db.SaveChangesAsync();
@@ -167,24 +174,21 @@ public sealed class AutorizacionFlujoTests : IClassFixture<ApiWebApplicationFact
     public async Task Aprobar_con_jwt_valido_sin_permiso_devuelve_403()
     {
         var (escenario, requisicionId) = await RequisicionListaParaEnviarAsync(405);
-        using var scope = _factory.Services.CreateScope();
-        var db = scope.ServiceProvider.GetRequiredService<AuropaqPedidosDbContext>();
-        var tokenEnviar = await AutorizacionHelper.CrearTokenConPermisosAsync(
-            _factory, db, 405, escenario.EmpresaId, "REQUISICION_ENVIAR");
+        var tokenEnviar = await TokenAsync(405, escenario.EmpresaId, "REQUISICION_ENVIAR");
 
         var enviar = EnviarRequest(requisicionId);
         enviar.Headers.Authorization = new AuthenticationHeaderValue("Bearer", tokenEnviar);
         await _cliente.SendAsync(enviar);
 
-        var iniciarRevision = new HttpRequestMessage(HttpMethod.Post, $"/api/v1/requisiciones/{requisicionId}/iniciar-revision");
-        iniciarRevision.Headers.Add("X-Usuario-Id", UsuarioIdNegocio);
+        // Usuario distinto (numero+30_000): necesita REQUISICION_APROBAR para poder mover la
+        // Requisición a EnRevision y así poder ejercitar el intento de aprobar más abajo.
+        var tokenRevisor = await TokenAsync(405 + 30_000, escenario.EmpresaId, "REQUISICION_APROBAR");
+        var iniciarRevision = ConToken(HttpMethod.Post, $"/api/v1/requisiciones/{requisicionId}/iniciar-revision", tokenRevisor);
         await _cliente.SendAsync(iniciarRevision);
 
         // Mismo token que sí tenía REQUISICION_ENVIAR, pero no REQUISICION_APROBAR: confirma que
         // la autorización es específica por permiso, no "todo o nada" para el usuario.
-        var aprobar = new HttpRequestMessage(HttpMethod.Post, $"/api/v1/requisiciones/{requisicionId}/aprobar");
-        aprobar.Headers.Add("X-Usuario-Id", UsuarioIdNegocio);
-        aprobar.Headers.Authorization = new AuthenticationHeaderValue("Bearer", tokenEnviar);
+        var aprobar = ConToken(HttpMethod.Post, $"/api/v1/requisiciones/{requisicionId}/aprobar", tokenEnviar);
         aprobar.Content = JsonContent.Create(new { observacion = (string?)null });
         var respuesta = await _cliente.SendAsync(aprobar);
 

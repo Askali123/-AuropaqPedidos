@@ -25,4 +25,13 @@ public sealed class SedeRepositoryEfCore : ISedeRepository
             .Where(s => EF.Property<int>(s, "EmpresaId") == empresaId)
             .OrderBy(s => s.Nombre)
             .ToList();
+
+    // Mismo patrón que EmpresaRepositoryEfCore.Guardar.
+    public void Guardar(Sede sede)
+    {
+        if (_contexto.Entry(sede).State == EntityState.Detached)
+            _contexto.Sedes.Add(sede);
+
+        _contexto.SaveChanges();
+    }
 }

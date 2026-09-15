@@ -1,3 +1,4 @@
+using AuropaqPedidos.Application.Auditorias.Abstracciones;
 using AuropaqPedidos.Application.Consolidaciones.Abstracciones;
 using AuropaqPedidos.Application.Excepciones;
 using AuropaqPedidos.Application.PedidosProveedor.Abstracciones;
@@ -5,6 +6,7 @@ using AuropaqPedidos.Application.PedidosProveedor.Dtos;
 using AuropaqPedidos.Application.Requisiciones.Abstracciones;
 using AuropaqPedidos.Domain.Entities;
 using AuropaqPedidos.Domain.Exceptions;
+using Microsoft.Extensions.Logging;
 
 namespace AuropaqPedidos.Application.PedidosProveedor;
 
@@ -12,26 +14,37 @@ namespace AuropaqPedidos.Application.PedidosProveedor;
 // Consolidacion existente y a un Proveedor. ProveedorId y NumeroPedido se reciben explícitos
 // del llamador: no existe una regla documentada de selección automática de proveedor ni de
 // generación de número de pedido (auditoría 2026-09-10, Pendientes 7/9).
+//
+// TASK-056 (Auditoría, punto 8.1 — 2026-09-15): "creación de pedido" es uno de los 6 ejemplos
+// documentados en 04-base-datos.md §33. usuarioId es nullable porque este endpoint todavía no
+// exige autenticación real (a diferencia de Requisición) — se registra cuando el llamador
+// incluye un JWT válido, aunque no sea obligatorio.
 public sealed class CrearPedidoProveedorUseCase
 {
     private readonly IPedidoProveedorRepository _pedidos;
     private readonly IConsolidacionRepository _consolidaciones;
     private readonly IProveedorRepository _proveedores;
+    private readonly IAuditoriaRepository _auditoria;
     private readonly IGeneradorDeIdentificadores _ids;
+    private readonly ILogger<CrearPedidoProveedorUseCase> _logger;
 
     public CrearPedidoProveedorUseCase(
         IPedidoProveedorRepository pedidos,
         IConsolidacionRepository consolidaciones,
         IProveedorRepository proveedores,
-        IGeneradorDeIdentificadores ids)
+        IAuditoriaRepository auditoria,
+        IGeneradorDeIdentificadores ids,
+        ILogger<CrearPedidoProveedorUseCase> logger)
     {
         _pedidos = pedidos;
         _consolidaciones = consolidaciones;
         _proveedores = proveedores;
+        _auditoria = auditoria;
         _ids = ids;
+        _logger = logger;
     }
 
-    public PedidoProveedorResponse Ejecutar(DateTime fechaPedido, CrearPedidoProveedorRequest request)
+    public PedidoProveedorResponse Ejecutar(DateTime fechaPedido, CrearPedidoProveedorRequest request, int? usuarioId = null)
     {
         var consolidacion = _consolidaciones.ObtenerPorId(request.ConsolidacionId)
             ?? throw new RecursoNoEncontradoException("La consolidación indicada no existe.");
@@ -59,6 +72,19 @@ public sealed class CrearPedidoProveedorUseCase
             observacion: request.Observacion);
 
         _pedidos.Guardar(pedido);
+
+        _auditoria.Guardar(new Auditoria(
+            id: _ids.Siguiente(),
+            usuarioId: usuarioId,
+            entidad: "PedidoProveedor",
+            entidadId: pedido.Id,
+            accion: "CREAR",
+            fecha: fechaPedido,
+            datosNuevos: $"ProveedorId={proveedor.Id}; NumeroPedido={pedido.NumeroPedido}; ConsolidacionId={consolidacion.Id}"));
+
+        _logger.LogInformation(
+            "PedidoProveedor {PedidoId} creado (proveedor {ProveedorId}, consolidación {ConsolidacionId}) por usuario {UsuarioId}",
+            pedido.Id, proveedor.Id, consolidacion.Id, usuarioId);
 
         return PedidoProveedorMapper.AResponse(pedido);
     }

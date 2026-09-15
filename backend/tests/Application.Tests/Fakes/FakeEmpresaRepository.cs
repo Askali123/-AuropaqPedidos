@@ -12,4 +12,6 @@ internal sealed class FakeEmpresaRepository : IEmpresaRepository
     public Empresa? ObtenerPorId(int id) => _empresas.TryGetValue(id, out var empresa) ? empresa : null;
 
     public IReadOnlyList<Empresa> ObtenerTodas() => _empresas.Values.OrderBy(e => e.Nombre).ToList();
+
+    public void Guardar(Empresa empresa) => _empresas[empresa.Id] = empresa;
 }

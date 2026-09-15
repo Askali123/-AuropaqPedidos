@@ -1203,6 +1203,78 @@ Un usuario solo puede ejecutar `POST /requisiciones/{id}/enviar` y `POST /requis
 
 Para estos dos endpoints, el `UsuarioId` registrado como actor de negocio (`Historial`) ahora proviene del claim `sub` del JWT — **ya no** del header `X-Usuario-Id` — decisión confirmada explícitamente por el usuario, respaldada además por el propio código: `EnviarRequisicionUseCase`/`AprobarRequisicionUseCase` (`TASK-029`/`033`) ya declaraban desde antes de que existiera autenticación real que "`usuarioId` debe provenir de la identidad autenticada, no del cliente". Confiar en `X-Usuario-Id` para el actor de negocio habría permitido que un usuario autenticado y con alcance válido quedara registrado en el `Historial` como una persona distinta. El resto de los endpoints de `Requisicion` (crear, detalles, distribuciones, iniciar-revisión, devolver) sigue usando `X-Usuario-Id` sin cambios — unificarlo es una decisión de alcance mayor, no pedida por esta tarea.
 
+## RN-059 — Catálogo definitivo de permisos y alcance por empresa, extendido a todos los módulos
+
+*(Decisión 2026-09-15, por instrucción explícita del usuario: analizar `docs/` completo, el dominio real y la lógica de negocio, y decidir de una vez el catálogo de permisos que quedaba pendiente desde el cierre de TASK-031/032. Ver ADR-062 para las alternativas consideradas y `06-seguridad.md §9/§52` para el catálogo y el mapeo completos.)*
+
+`06-seguridad.md §9` documentaba el catálogo de permisos como "Ejemplos" desde el diseño original — suficiente para Requisición (ya implementado, RN-057) pero no para los ~50 endpoints que hoy existen sin ninguna autorización por permiso (Empresa, Sede, Usuario, Rol, Permiso, Categoría, UnidadMedida, Producto, Proveedor, Solicitud de producto no catalogado, Periodo, y el resto de Requisición más allá de Enviar/Aprobar). Se decide el catálogo completo y su mapeo a cada endpoint, con dos criterios de negocio verificados contra el dominio real antes de decidir:
+
+1. **Qué módulos comparten un mismo permiso.** Categoria/UnidadMedida se agrupan bajo `PRODUCTO_*` (no tienen ciclo de vida ni responsable propios: son datos de apoyo de `Producto`, `04-base-datos.md §10/§11`, sin ningún RN que les dé un flujo de aprobación independiente). Empresa/Sede se agrupan bajo `ORGANIZACION_*` (Sede es un sub-recurso de Empresa, RN-002, sin flujo propio). Usuario/Rol/Permiso/UsuarioRol/UsuarioSede/RolPermiso se agrupan bajo `SEGURIDAD_*` (todos son configuración de quién-puede-qué, no procesos de negocio distintos entre sí — separarlos violaría `CLAUDE.md §43` sin necesidad real). Proveedor y Periodo no se agrupan con ningún otro módulo: son entidades de negocio independientes con su propio ciclo de vida documentado (`04-base-datos.md §14/§16`).
+
+2. **Qué acción de Solicitud de producto no catalogado usa qué permiso.** `06-seguridad.md §53` (matriz conceptual) muestra explícitamente que el rol Solicitante **no** tiene "Crear producto" — pero `TASK-017`/RN-024 exige que un Solicitante pueda enviar una solicitud de producto no catalogado. Usar `PRODUCTO_CREAR` para *enviar* la solicitud sería darle al Solicitante una capacidad que la propia matriz le niega. Se crea `PRODUCTO_SOLICITAR`, distinto de `PRODUCTO_CREAR`/`PRODUCTO_EDITAR` (usados para *resolver* la solicitud — homologar/crear-producto/rechazar —, acción de un gestor de catálogo).
+
+**Alcance por empresa** (RN-058) se extiende a **todos** los endpoints de Requisición con permiso propio (crear, modificar, ver — incluyendo `GET /requisiciones/{id}`, corrigiendo la implementación de TASK-032 que no lo aplicaba —, enviar, aprobar, devolver, iniciar-revisión): un usuario solo opera sobre requisiciones de su propia empresa, sin excepción. **No** se aplica a Organización/Seguridad (administran empresas por definición, no pueden depender de una) ni a Catálogo/Proveedor/Periodo (son datos globales compartidos por todas las empresas, `06-seguridad.md §11` no exige alcance sobre datos que no pertenecen a ninguna empresa en particular).
+
+**Esto es una decisión, no una implementación.** Sigue pendiente: agregar los `[Authorize]` reales y sembrar los ~20 permisos nuevos en el catálogo (ya existe API real para crearlos, TASK-011). La asignación roles↔permisos se decidió por separado en RN-060 (misma fecha).
+
+## RN-060 — Catálogo definitivo de roles y su asignación de permisos
+
+*(Decisión 2026-09-15, por instrucción explícita del usuario: "revisa primero el catálogo/mapeo documentado, define bien las reglas de negocio, y deja definida la asignación rol↔permiso antes de implementar". Ver ADR-063 para las alternativas consideradas y `06-seguridad.md §8/§53` para el catálogo de roles y la matriz completa.)*
+
+`06-seguridad.md §8` documentaba 5 roles (`SOLICITANTE`, `GESTOR_REQUISICIONES`, `COMPRAS`,
+`RECEPCION`, `ADMINISTRADOR`) como "ejemplos conceptuales", y `§53` los cruzaba contra un
+subconjunto de acciones (solo Requisición + 4 acciones sueltas de Pedido/Entrega/Factura/Producto)
+también marcado "conceptual". Se decide usar estos mismos 5 roles (ninguno se agrega ni se quita
+— `CLAUDE.md §6` no autoriza inventar responsabilidades nuevas) y se completa la matriz contra el
+catálogo íntegro de RN-059.
+
+**Criterios aplicados, verificados contra la matriz original y el dominio real:**
+
+1. **Se respeta literalmente cada casilla ya marcada en la matriz conceptual original.** Ninguna
+   asignación ya decidida (Solicitante crea/modifica/envía pero no aprueba; Gestor aprueba/
+   devuelve; Compras crea producto/pedido/factura; Recepción solo registra entrega; Administrador
+   tiene todo) se cambió — solo se completó lo que la matriz no cubría.
+2. **`GESTOR_REQUISICIONES` recibe `PRODUCTO_CREAR`/`PRODUCTO_EDITAR`** porque la matriz original
+   ya le daba "Crear producto" — pese a que su nombre sugiere un alcance más estrecho ("de
+   requisiciones"), se preserva la asignación ya decidida en vez de inventar un rol nuevo más
+   angosto que nadie pidió.
+3. **`COMPRAS` recibe `PROVEEDOR_VER`/`CREAR`/`EDITAR`** — no estaba en la matriz original (no
+   existía el módulo Proveedor con API todavía), pero es la extensión más directa del nombre y
+   propósito del rol ("Compras" negocia con proveedores) y no compite con ninguna asignación ya
+   existente.
+4. **`SOLICITANTE`/`GESTOR_REQUISICIONES` reciben `PERIODO_VER`** (necesitan saber qué periodos
+   están abiertos para operar) pero **no** `PERIODO_CREAR` — abrir un periodo operativo mensual es
+   una decisión administrativa de calendario, no una responsabilidad de quien solicita o revisa
+   requisiciones; se asigna solo a `ADMINISTRADOR`.
+5. **`ORGANIZACION_VER` se asigna a los 5 roles** — todos necesitan ver su propia empresa/sedes
+   para operar (por ejemplo, distribuir una requisición por sede). `ORGANIZACION_ADMINISTRAR`
+   (crear/modificar empresas y sedes) y ambos permisos de `SEGURIDAD_*` quedan **exclusivos de
+   `ADMINISTRADOR`** — administrar la organización y la seguridad del sistema es, por definición,
+   una responsabilidad administrativa (`06-seguridad.md §19` mínimo privilegio).
+6. **`ADMINISTRADOR` NO obtiene una excepción de alcance por empresa.** La matriz conceptual
+   original mostraba "Ver requisiciones: Amplio" para Administrador, distinto de "Alcance" para
+   los demás roles. Se decide **no implementar ese bypass todavía**: `06-seguridad.md §45`
+   exige que las excepciones administrativas se definan explícitamente, no se asuman; no existe
+   hoy ningún requisito de negocio documentado que obligue a un Administrador a ver
+   requisiciones de empresas ajenas a la suya, y el mecanismo actual de alcance (RN-058,
+   `AlcanceRequisicionAuthorizationHandler`) no distingue roles — añadir esa distinción sería una
+   ampliación de alcance mayor, no pedida. Administrador queda sujeto a la misma regla de alcance
+   por empresa que cualquier otro rol. Si el negocio confirma la necesidad de un superadministrador
+   sin restricción de empresa, debe registrarse como una decisión nueva que reemplace este punto.
+7. **Prevención de escalamiento de privilegios (`06-seguridad.md §62`), regla de negocio explícita
+   a implementar junto con el punto 8:** ningún usuario puede asignarse un rol a sí mismo, ni
+   asignar/quitar sus propios permisos, aunque tenga `SEGURIDAD_ADMINISTRAR`. `AsignarRolAUsuarioUseCase`
+   debe rechazar la operación cuando el usuario que ejecuta la acción (identidad autenticada) es
+   el mismo usuario destino de la asignación.
+
+Las filas de Pedido/Entrega/Factura en la matriz (`06-seguridad.md §53`) quedan asignadas para
+cuando esas fases se implementen (Fases 7-9, posteriores al MVP) — no se activa ningún
+`[Authorize]` para ellas todavía porque los endpoints no existen.
+
+**Esto sigue siendo una decisión, no una implementación.** La siguiente sesión implementa el
+punto 8 del bloque A (`progreso.md`) con este catálogo y esta matriz ya definidos, sin más
+decisiones de negocio pendientes para autorización del MVP.
+
 ---
 
 # 15. Reglas todavía pendientes de definición

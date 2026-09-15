@@ -26,4 +26,13 @@ public sealed class ProductoRepositoryEfCore : IProductoRepository
             .Include(p => p.UnidadMedida)
             .OrderBy(p => p.Nombre)
             .ToList();
+
+    // Mismo patrón que EmpresaRepositoryEfCore.Guardar.
+    public void Guardar(Producto producto)
+    {
+        if (_contexto.Entry(producto).State == EntityState.Detached)
+            _contexto.Productos.Add(producto);
+
+        _contexto.SaveChanges();
+    }
 }

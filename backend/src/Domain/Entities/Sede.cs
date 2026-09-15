@@ -53,4 +53,27 @@ public sealed class Sede
     public void Activar() => Activo = true;
 
     public void Desactivar() => Activo = false;
+
+    // TASK-007: "Actualizar sede" (05-api.md §12.3). Activo se cambia con Activar()/Desactivar(),
+    // no aquí (mismo criterio que Empresa.ActualizarDatos). Empresa no se puede reasignar: una sede
+    // no puede pasar de una empresa a otra sin que exista una regla de negocio que lo autorice
+    // (RN-002 — "cada sede pertenece a una única empresa").
+    public void ActualizarDatos(
+        string nombre,
+        string? direccion = null,
+        string? ciudad = null,
+        string? departamento = null,
+        string? telefono = null,
+        string? contacto = null)
+    {
+        if (string.IsNullOrWhiteSpace(nombre))
+            throw new ReglaDeNegocioException("El nombre de la sede es obligatorio.");
+
+        Nombre = nombre;
+        Direccion = direccion;
+        Ciudad = ciudad;
+        Departamento = departamento;
+        Telefono = telefono;
+        Contacto = contacto;
+    }
 }

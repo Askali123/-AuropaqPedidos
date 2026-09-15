@@ -5,6 +5,7 @@ using AuropaqPedidos.Domain.Enums;
 
 namespace Application.Tests;
 
+// RN-059/060 (punto 8): empresaId ya no se pasa explícito, se deriva de Usuario.Empresa.Id.
 public class IniciarOContinuarRequisicionUseCaseTests
 {
     [Fact]
@@ -12,10 +13,10 @@ public class IniciarOContinuarRequisicionUseCaseTests
     {
         var escenario = new EscenarioDePrueba();
         var useCase = new IniciarOContinuarRequisicionUseCase(
-            escenario.Requisiciones, escenario.Empresas, escenario.Periodos, escenario.Ids);
+            escenario.Requisiciones, escenario.Usuarios, escenario.Periodos, escenario.Ids);
 
         var respuesta = useCase.Ejecutar(
-            escenario.Empresa.Id, usuarioId: 10, new CrearRequisicionRequest(escenario.Periodo.Id), new DateTime(2026, 9, 1));
+            escenario.Usuario.Id, new CrearRequisicionRequest(escenario.Periodo.Id), new DateTime(2026, 9, 1));
 
         Assert.Equal(RequisicionEstado.Borrador.ToString(), respuesta.Estado);
         Assert.Equal(escenario.Empresa.Id, respuesta.EmpresaId);
@@ -27,24 +28,24 @@ public class IniciarOContinuarRequisicionUseCaseTests
     {
         var escenario = new EscenarioDePrueba();
         var useCase = new IniciarOContinuarRequisicionUseCase(
-            escenario.Requisiciones, escenario.Empresas, escenario.Periodos, escenario.Ids);
+            escenario.Requisiciones, escenario.Usuarios, escenario.Periodos, escenario.Ids);
         var request = new CrearRequisicionRequest(escenario.Periodo.Id);
 
-        var primera = useCase.Ejecutar(escenario.Empresa.Id, 10, request, new DateTime(2026, 9, 1));
-        var segunda = useCase.Ejecutar(escenario.Empresa.Id, 10, request, new DateTime(2026, 9, 1));
+        var primera = useCase.Ejecutar(escenario.Usuario.Id, request, new DateTime(2026, 9, 1));
+        var segunda = useCase.Ejecutar(escenario.Usuario.Id, request, new DateTime(2026, 9, 1));
 
         Assert.Equal(primera.Id, segunda.Id);
     }
 
     [Fact]
-    public void Lanza_no_encontrado_si_la_empresa_no_existe()
+    public void Lanza_no_encontrado_si_el_usuario_no_existe()
     {
         var escenario = new EscenarioDePrueba();
         var useCase = new IniciarOContinuarRequisicionUseCase(
-            escenario.Requisiciones, escenario.Empresas, escenario.Periodos, escenario.Ids);
+            escenario.Requisiciones, escenario.Usuarios, escenario.Periodos, escenario.Ids);
 
         Assert.Throws<RecursoNoEncontradoException>(() =>
-            useCase.Ejecutar(empresaId: 999, usuarioId: 10, new CrearRequisicionRequest(escenario.Periodo.Id), new DateTime(2026, 9, 1)));
+            useCase.Ejecutar(usuarioId: 999, new CrearRequisicionRequest(escenario.Periodo.Id), new DateTime(2026, 9, 1)));
     }
 
     [Fact]
@@ -52,9 +53,9 @@ public class IniciarOContinuarRequisicionUseCaseTests
     {
         var escenario = new EscenarioDePrueba();
         var useCase = new IniciarOContinuarRequisicionUseCase(
-            escenario.Requisiciones, escenario.Empresas, escenario.Periodos, escenario.Ids);
+            escenario.Requisiciones, escenario.Usuarios, escenario.Periodos, escenario.Ids);
 
         Assert.Throws<RecursoNoEncontradoException>(() =>
-            useCase.Ejecutar(escenario.Empresa.Id, usuarioId: 10, new CrearRequisicionRequest(PeriodoId: 999), new DateTime(2026, 9, 1)));
+            useCase.Ejecutar(escenario.Usuario.Id, new CrearRequisicionRequest(PeriodoId: 999), new DateTime(2026, 9, 1)));
     }
 }

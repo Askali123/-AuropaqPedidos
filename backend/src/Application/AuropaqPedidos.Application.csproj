@@ -6,6 +6,10 @@
 
   <ItemGroup>
     <PackageReference Include="Microsoft.Extensions.DependencyInjection.Abstractions" Version="10.0.12" />
+    <!-- TASK-055 (Logging): abstracción de primera parte (Microsoft), sin implementación
+         concreta ni dependencias transitivas nuevas más allá del propio runtime de .NET; el
+         host (Api) ya la trae. No introduce un framework de logging de terceros. -->
+    <PackageReference Include="Microsoft.Extensions.Logging.Abstractions" Version="10.0.12" />
   </ItemGroup>
 
   <PropertyGroup>

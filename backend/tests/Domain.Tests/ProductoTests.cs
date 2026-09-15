@@ -63,4 +63,48 @@ public class ProductoTests
         producto.Activar();
         Assert.True(producto.Activo);
     }
+
+    [Fact]
+    public void ActualizarDatos_cambia_datos_categoria_y_unidad_sin_afectar_el_estado()
+    {
+        var producto = new Producto(1, "Papel higiénico", CrearCategoria(), CrearUnidad(), codigoInterno: "PAP-001");
+        producto.Desactivar();
+        var nuevaCategoria = new Categoria(2, "Aseo");
+        var nuevaUnidad = new UnidadMedida(2, "PAQUETE", "Paquete");
+
+        producto.ActualizarDatos("Papel higiénico premium", nuevaCategoria, nuevaUnidad, "PAP-002", "Nueva descripción");
+
+        Assert.Equal("Papel higiénico premium", producto.Nombre);
+        Assert.Equal(nuevaCategoria, producto.Categoria);
+        Assert.Equal(nuevaUnidad, producto.UnidadMedida);
+        Assert.Equal("PAP-002", producto.CodigoInterno);
+        Assert.False(producto.Activo);
+    }
+
+    [Theory]
+    [InlineData("")]
+    [InlineData("   ")]
+    [InlineData(null)]
+    public void ActualizarDatos_no_permite_nombre_vacio(string? nombreInvalido)
+    {
+        var producto = new Producto(1, "Papel higiénico", CrearCategoria(), CrearUnidad());
+
+        Assert.Throws<ReglaDeNegocioException>(() => producto.ActualizarDatos(nombreInvalido!, CrearCategoria(), CrearUnidad()));
+    }
+
+    [Fact]
+    public void ActualizarDatos_no_permite_categoria_nula()
+    {
+        var producto = new Producto(1, "Papel higiénico", CrearCategoria(), CrearUnidad());
+
+        Assert.Throws<ReglaDeNegocioException>(() => producto.ActualizarDatos("Papel higiénico", null!, CrearUnidad()));
+    }
+
+    [Fact]
+    public void ActualizarDatos_no_permite_unidad_de_medida_nula()
+    {
+        var producto = new Producto(1, "Papel higiénico", CrearCategoria(), CrearUnidad());
+
+        Assert.Throws<ReglaDeNegocioException>(() => producto.ActualizarDatos("Papel higiénico", CrearCategoria(), null!));
+    }
 }

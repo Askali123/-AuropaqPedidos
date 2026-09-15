@@ -10,4 +10,8 @@ internal sealed class FakeProveedorRepository : IProveedorRepository
     public void Agregar(Proveedor proveedor) => _proveedores[proveedor.Id] = proveedor;
 
     public Proveedor? ObtenerPorId(int id) => _proveedores.TryGetValue(id, out var proveedor) ? proveedor : null;
+
+    public IReadOnlyList<Proveedor> ObtenerTodos() => _proveedores.Values.OrderBy(p => p.Nombre).ToList();
+
+    public void Guardar(Proveedor proveedor) => _proveedores[proveedor.Id] = proveedor;
 }

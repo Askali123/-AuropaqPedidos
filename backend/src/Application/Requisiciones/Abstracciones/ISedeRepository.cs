@@ -8,4 +8,7 @@ public interface ISedeRepository
 
     // Soporta el selector de sede del Frontend (TASK: habilitar consultas para Requisiciones).
     IReadOnlyList<Sede> ObtenerPorEmpresa(int empresaId);
+
+    // TASK-007: crear/actualizar. Mismo patrón que IUsuarioRepository.Guardar.
+    void Guardar(Sede sede);
 }

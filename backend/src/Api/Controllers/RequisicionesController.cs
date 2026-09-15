@@ -12,11 +12,21 @@ namespace AuropaqPedidos.Api.Controllers;
 // detalles, distribución, guardar, enviar, iniciar-revision, aprobar, devolver).
 // El Controller solo traduce HTTP <-> caso de uso (CLAUDE.md §35/§40, 03-arquitectura.md §20):
 // no contiene reglas de negocio, todas viven en Application/Domain.
+//
+// RN-059/060 (punto 8, 2026-09-15): autorización real (permiso + alcance por empresa) en TODAS
+// las rutas de este Controller — antes solo Enviar/Aprobar la tenían (TASK-049/050). Mapeo
+// completo en 06-seguridad.md §52. `IdentidadTemporal`/`X-Usuario-Id`/`X-Empresa-Id` ya no se
+// usan aquí: el actor de negocio y la empresa se derivan siempre del JWT (ver
+// ObtenerUsuarioIdAutenticado y los casos de uso de creación/listado, que resuelven la empresa
+// internamente a partir de Usuario.Empresa.Id).
 [ApiController]
 [Route("api/v1/requisiciones")]
 public sealed class RequisicionesController : ControllerBase
 {
     private readonly IniciarOContinuarRequisicionUseCase _iniciarOContinuar;
+    private readonly ObtenerRequisicionUseCase _obtener;
+    private readonly ListarRequisicionesUseCase _listar;
+    private readonly ListarRequisicionesPendientesDeRevisionUseCase _listarPendientesDeRevision;
     private readonly AgregarDetalleRequisicionUseCase _agregarDetalle;
     private readonly ActualizarDetalleRequisicionUseCase _actualizarDetalle;
     private readonly EliminarDetalleRequisicionUseCase _eliminarDetalle;
@@ -31,6 +41,9 @@ public sealed class RequisicionesController : ControllerBase
 
     public RequisicionesController(
         IniciarOContinuarRequisicionUseCase iniciarOContinuar,
+        ObtenerRequisicionUseCase obtener,
+        ListarRequisicionesUseCase listar,
+        ListarRequisicionesPendientesDeRevisionUseCase listarPendientesDeRevision,
         AgregarDetalleRequisicionUseCase agregarDetalle,
         ActualizarDetalleRequisicionUseCase actualizarDetalle,
         EliminarDetalleRequisicionUseCase eliminarDetalle,
@@ -44,6 +57,9 @@ public sealed class RequisicionesController : ControllerBase
         DevolverRequisicionUseCase devolver)
     {
         _iniciarOContinuar = iniciarOContinuar;
+        _obtener = obtener;
+        _listar = listar;
+        _listarPendientesDeRevision = listarPendientesDeRevision;
         _agregarDetalle = agregarDetalle;
         _actualizarDetalle = actualizarDetalle;
         _eliminarDetalle = eliminarDetalle;
@@ -57,19 +73,50 @@ public sealed class RequisicionesController : ControllerBase
         _devolver = devolver;
     }
 
+    // docs/05-api.md §17.1/§54.6 punto 1: "mis requisiciones" — empresa derivada del JWT.
+    [Authorize(Policy = "Permiso:REQUISICION_VER")]
+    [HttpGet]
+    public ActionResult<ApiResponse<IReadOnlyList<RequisicionResponse>>> Listar()
+    {
+        var resultado = _listar.Ejecutar(ObtenerUsuarioIdAutenticado());
+        return Ok(ApiResponse<IReadOnlyList<RequisicionResponse>>.De(resultado));
+    }
+
+    // docs/05-api.md §24.1/§54.6 punto 1: bandeja de revisión, misma empresa del JWT.
+    [Authorize(Policy = "Permiso:REQUISICION_VER")]
+    [HttpGet("pendientes-revision")]
+    public ActionResult<ApiResponse<IReadOnlyList<RequisicionResponse>>> ListarPendientesDeRevision()
+    {
+        var resultado = _listarPendientesDeRevision.Ejecutar(ObtenerUsuarioIdAutenticado());
+        return Ok(ApiResponse<IReadOnlyList<RequisicionResponse>>.De(resultado));
+    }
+
+    // docs/05-api.md §17.2/§54.6 punto 2. RN-060: corrige TASK-032 (se implementó sin alcance) —
+    // ahora exige la misma empresa, igual que el resto de rutas de este Controller.
+    [Authorize(Policy = "Permiso:REQUISICION_VER")]
+    [Authorize(Policy = "AlcanceRequisicion")]
+    [HttpGet("{id:int}")]
+    public ActionResult<ApiResponse<RequisicionResponse>> Obtener(int id)
+    {
+        var resultado = _obtener.Ejecutar(id);
+        return Ok(ApiResponse<RequisicionResponse>.De(resultado));
+    }
+
     // docs/05-api.md §18. "Crea o recupera": no se puede saber de antemano si el resultado es
-    // un recurso nuevo o uno existente, así que se responde 200 en ambos casos (no 201).
+    // un recurso nuevo o uno existente, así que se responde 200 en ambos casos (no 201). Sin
+    // AlcanceRequisicion aquí: todavía no existe un recurso con {id} contra el que comprobar
+    // alcance — la empresa se deriva de Usuario.Empresa.Id dentro del caso de uso.
+    [Authorize(Policy = "Permiso:REQUISICION_CREAR")]
     [HttpPost]
     public ActionResult<ApiResponse<RequisicionResponse>> IniciarOContinuar([FromBody] CrearRequisicionRequest request)
     {
-        if (!TryObtenerIdentidad(out var usuarioId, out var empresaId, out var error))
-            return error;
-
-        var resultado = _iniciarOContinuar.Ejecutar(empresaId, usuarioId, request, DateTime.UtcNow);
+        var resultado = _iniciarOContinuar.Ejecutar(ObtenerUsuarioIdAutenticado(), request, DateTime.UtcNow);
         return Ok(ApiResponse<RequisicionResponse>.De(resultado));
     }
 
     // docs/05-api.md §19.
+    [Authorize(Policy = "Permiso:REQUISICION_CREAR")]
+    [Authorize(Policy = "AlcanceRequisicion")]
     [HttpPost("{id:int}/detalles")]
     public ActionResult<ApiResponse<RequisicionResponse>> AgregarDetalle(int id, [FromBody] AgregarDetalleRequisicionRequest request)
     {
@@ -78,6 +125,8 @@ public sealed class RequisicionesController : ControllerBase
     }
 
     // docs/05-api.md §20.
+    [Authorize(Policy = "Permiso:REQUISICION_MODIFICAR")]
+    [Authorize(Policy = "AlcanceRequisicion")]
     [HttpPut("{id:int}/detalles/{detalleId:int}")]
     public ActionResult<ApiResponse<RequisicionResponse>> ActualizarDetalle(
         int id, int detalleId, [FromBody] ActualizarDetalleRequisicionRequest request)
@@ -87,6 +136,8 @@ public sealed class RequisicionesController : ControllerBase
     }
 
     // docs/05-api.md §21.
+    [Authorize(Policy = "Permiso:REQUISICION_MODIFICAR")]
+    [Authorize(Policy = "AlcanceRequisicion")]
     [HttpDelete("{id:int}/detalles/{detalleId:int}")]
     public ActionResult<ApiResponse<RequisicionResponse>> EliminarDetalle(int id, int detalleId)
     {
@@ -100,6 +151,8 @@ public sealed class RequisicionesController : ControllerBase
     // la vez), así que se exponen como sub-recurso "distribuciones" en lugar de reutilizar
     // esa misma ruta con un contrato distinto al documentado. No se resuelve la contradicción
     // en este bloque (instrucción explícita de la tarea actual).
+    [Authorize(Policy = "Permiso:REQUISICION_CREAR")]
+    [Authorize(Policy = "AlcanceRequisicion")]
     [HttpPost("{id:int}/detalles/{detalleId:int}/distribuciones")]
     public ActionResult<ApiResponse<RequisicionResponse>> AgregarDistribucion(
         int id, int detalleId, [FromBody] AgregarDistribucionRequest request)
@@ -108,6 +161,8 @@ public sealed class RequisicionesController : ControllerBase
         return StatusCode(StatusCodes.Status201Created, ApiResponse<RequisicionResponse>.De(resultado));
     }
 
+    [Authorize(Policy = "Permiso:REQUISICION_MODIFICAR")]
+    [Authorize(Policy = "AlcanceRequisicion")]
     [HttpPut("{id:int}/detalles/{detalleId:int}/distribuciones/{distribucionId:int}")]
     public ActionResult<ApiResponse<RequisicionResponse>> ModificarDistribucion(
         int id, int detalleId, int distribucionId, [FromBody] ModificarDistribucionRequest request)
@@ -116,6 +171,8 @@ public sealed class RequisicionesController : ControllerBase
         return Ok(ApiResponse<RequisicionResponse>.De(resultado));
     }
 
+    [Authorize(Policy = "Permiso:REQUISICION_MODIFICAR")]
+    [Authorize(Policy = "AlcanceRequisicion")]
     [HttpDelete("{id:int}/detalles/{detalleId:int}/distribuciones/{distribucionId:int}")]
     public ActionResult<ApiResponse<RequisicionResponse>> EliminarDistribucion(int id, int detalleId, int distribucionId)
     {
@@ -126,6 +183,8 @@ public sealed class RequisicionesController : ControllerBase
     // TASK-028/RN-013: guardar no es enviar. No documentado como ruta propia en
     // docs/05-api.md (el documento no enumera un endpoint dedicado), se expone como acción
     // explícita siguiendo la misma convención que /enviar, /aprobar, /devolver (05-api.md §41).
+    [Authorize(Policy = "Permiso:REQUISICION_CREAR")]
+    [Authorize(Policy = "AlcanceRequisicion")]
     [HttpPost("{id:int}/guardar")]
     public ActionResult<ApiResponse<RequisicionResponse>> GuardarBorrador(int id)
     {
@@ -133,14 +192,10 @@ public sealed class RequisicionesController : ControllerBase
         return Ok(ApiResponse<RequisicionResponse>.De(resultado));
     }
 
-    // docs/05-api.md §23. TASK-016: primer endpoint protegido por permiso (06-seguridad.md §52,
-    // el único par endpoint/permiso con algún respaldo documental para una ruta que existe
-    // realmente) — requiere autenticación (401 si falta/JWT inválido) + REQUISICION_ENVIAR
-    // (403 si no lo tiene). TASK-050 agrega alcance por empresa (403 si la Requisicion no es de
-    // la Empresa del usuario autenticado) y reemplaza X-Usuario-Id por el UsuarioId del JWT como
-    // actor de negocio (decisión explícita del usuario; el propio EnviarRequisicionUseCase ya
-    // decía desde TASK-029 que "usuarioId debe provenir de la identidad autenticada, no del
-    // cliente" — ver ObtenerUsuarioIdAutenticado).
+    // docs/05-api.md §23. TASK-016: primer endpoint protegido por permiso (06-seguridad.md §52) —
+    // requiere autenticación (401 si falta/JWT inválido) + REQUISICION_ENVIAR (403 si no lo
+    // tiene). TASK-050 agrega alcance por empresa (403 si la Requisicion no es de la Empresa del
+    // usuario autenticado) y usa el UsuarioId del JWT como actor de negocio.
     [Authorize(Policy = "Permiso:REQUISICION_ENVIAR")]
     [Authorize(Policy = "AlcanceRequisicion")]
     [HttpPost("{id:int}/enviar")]
@@ -152,14 +207,14 @@ public sealed class RequisicionesController : ControllerBase
 
     // Transición ENVIADA -> EN_REVISION (02-dominio.md §17, 04-base-datos.md §18). Sin ruta
     // documentada en docs/05-api.md (ambigüedad ya reportada: ningún RN-XXX define qué la
-    // dispara); se expone como acción explícita porque la tarea actual la pide expresamente.
+    // dispara). RN-060/06-seguridad.md §52: reutiliza REQUISICION_APROBAR — mismo actor que
+    // aprueba/devuelve, sin permiso propio porque nadie le asigna un dueño distinto.
+    [Authorize(Policy = "Permiso:REQUISICION_APROBAR")]
+    [Authorize(Policy = "AlcanceRequisicion")]
     [HttpPost("{id:int}/iniciar-revision")]
     public ActionResult<ApiResponse<RequisicionResponse>> IniciarRevision(int id)
     {
-        if (!IdentidadTemporal.TryObtenerUsuarioId(Request, out var usuarioId))
-            return HeaderUsuarioIdFaltante();
-
-        var resultado = _iniciarRevision.Ejecutar(id, usuarioId, DateTime.UtcNow);
+        var resultado = _iniciarRevision.Ejecutar(id, ObtenerUsuarioIdAutenticado(), DateTime.UtcNow);
         return Ok(ApiResponse<RequisicionResponse>.De(resultado));
     }
 
@@ -175,47 +230,19 @@ public sealed class RequisicionesController : ControllerBase
     }
 
     // docs/05-api.md §25.
+    [Authorize(Policy = "Permiso:REQUISICION_DEVOLVER")]
+    [Authorize(Policy = "AlcanceRequisicion")]
     [HttpPost("{id:int}/devolver")]
     public ActionResult<ApiResponse<RequisicionResponse>> Devolver(int id, [FromBody] DevolverRequisicionRequest request)
     {
-        if (!IdentidadTemporal.TryObtenerUsuarioId(Request, out var usuarioId))
-            return HeaderUsuarioIdFaltante();
-
-        var resultado = _devolver.Ejecutar(id, usuarioId, DateTime.UtcNow, request);
+        var resultado = _devolver.Ejecutar(id, ObtenerUsuarioIdAutenticado(), DateTime.UtcNow, request);
         return Ok(ApiResponse<RequisicionResponse>.De(resultado));
     }
 
-    private bool TryObtenerIdentidad(out int usuarioId, out int empresaId, out ActionResult error)
-    {
-        if (!IdentidadTemporal.TryObtenerUsuarioId(Request, out usuarioId))
-        {
-            empresaId = 0;
-            error = HeaderFaltante("X-Usuario-Id");
-            return false;
-        }
-
-        if (!IdentidadTemporal.TryObtenerEmpresaId(Request, out empresaId))
-        {
-            error = HeaderFaltante("X-Empresa-Id");
-            return false;
-        }
-
-        error = null!;
-        return true;
-    }
-
-    // TASK-050. Solo se usa en endpoints con [Authorize]: para cuando esta línea se ejecuta, la
-    // autorización (Permiso + AlcanceRequisicion) ya exigió con éxito un claim "sub" válido —
-    // PermisoAuthorizationHandler/AlcanceRequisicionAuthorizationHandler ya lo parsearon para
-    // llegar hasta aquí, así que el parseo no puede fallar en la práctica.
+    // Solo se usa en endpoints con [Authorize]: para cuando esta línea se ejecuta, la
+    // autorización (Permiso + AlcanceRequisicion cuando aplica) ya exigió con éxito un claim
+    // "sub" válido — PermisoAuthorizationHandler/AlcanceRequisicionAuthorizationHandler ya lo
+    // parsearon para llegar hasta aquí, así que el parseo no puede fallar en la práctica.
     private int ObtenerUsuarioIdAutenticado() =>
         int.Parse(User.FindFirst(JwtRegisteredClaimNames.Sub)!.Value);
-
-    private static ActionResult HeaderUsuarioIdFaltante() => HeaderFaltante("X-Usuario-Id");
-
-    private static ActionResult HeaderFaltante(string nombreHeader) => new BadRequestObjectResult(
-        new ErrorResponse(new ErrorDetail(
-            "SOLICITUD_INVALIDA",
-            $"El header '{nombreHeader}' es obligatorio mientras no exista autenticación real (placeholder temporal).",
-            Array.Empty<string>())));
 }

@@ -481,6 +481,8 @@ No implementar todavía toda la lógica de autenticación si esta no está defin
 `EN_DESARROLLO`
 
 > **Actualización (implementación 2026-09-14):** `UsuarioSede` implementado en Domain/Application/Infrastructure según `04-base-datos.md §8` (`Usuario N ─── N Sede`, clave primaria compuesta `UsuarioId+SedeId`, sin `Id` propio). Valida aislamiento multiempresa (`Usuario.Empresa == Sede.Empresa`) en Domain. Sin API (ningún endpoint documentado en `05-api.md`).
+>
+> **Actualización (decisión ADR-061, 2026-09-15):** la ausencia de API se había documentado como "confirmada, no pendiente" (`05-api.md §55.3` original), en contradicción con esta misma nota. Presentada la contradicción al usuario, decidió construir la API real: `POST`/`GET /api/v1/usuarios/{usuarioId}/sedes` (`05-api.md §62`). Sigue `EN_DESARROLLO`, no `COMPLETADA`: falta autorización real sobre este endpoint (permiso + alcance), pendiente junto con el resto de endpoints nuevos del MVP (`progreso.md`, `## Próxima tarea`).
 
 ### Objetivo
 
@@ -508,6 +510,8 @@ El sistema debe poder determinar las sedes autorizadas de un usuario.
 `EN_DESARROLLO`
 
 > **Actualización (implementación 2026-09-14):** `Rol` implementado en Domain/Application/Infrastructure según el contrato real de `04-base-datos.md §9.1` (`Id, Nombre, Descripcion, Activo` — **GLOBAL, sin `EmpresaId`**). Por instrucción explícita del usuario, esta tarea se amplió para incluir también `UsuarioRol` (alcance original de `TASK-012`), como relación N:N sin validación de empresa (Rol es global). Sin API (ningún endpoint documentado en `05-api.md`). Sin `Permiso`/`RolPermiso` (`TASK-011`/`TASK-013`, no tocadas).
+>
+> **Actualización (decisión ADR-061, 2026-09-15):** ver detalle completo de la contradicción y la decisión en la nota de `TASK-009` de esta misma fecha. Se construyó la API real: `GET`/`POST /api/v1/roles` y `POST`/`GET /api/v1/usuarios/{usuarioId}/roles` (`05-api.md §59`/`§61`). Sigue `EN_DESARROLLO`: falta autorización real sobre estos endpoints (mismo motivo que `TASK-009`).
 
 ### Objetivo
 
@@ -536,6 +540,8 @@ Estos son ejemplos y no deben convertirse automáticamente en requisitos definit
 > **Actualización (implementación 2026-09-14):** `Permiso` implementado en Domain/Application/Infrastructure según el contrato real de `04-base-datos.md §9.2` (`Id, Codigo, Nombre, Descripcion` — **GLOBAL, sin `EmpresaId`, sin `Activo`**). Sin API (ningún endpoint documentado en `05-api.md`). Sin `RolPermiso` (`TASK-013`, no tocada) — el catálogo queda preparado para que esa tarea lo relacione con `Rol`.
 >
 > **Actualización — hardening previo a TASK-013 (2026-09-14):** `Permiso.Codigo` se cerró como identificador **GLOBALMENTE ÚNICO** (RN-055/ADR-056) — la implementación inicial de esta misma fecha lo había dejado sin unicidad (mismo vacío que `Rol.Nombre`), pero se determinó que TASK-013 (`RolPermiso`) necesita un código inequívoco para no generar ambigüedad al asignar permisos a roles. Reforzado con índice único en SQL Server (migración `AgregarUnicidadPermisoCodigo`) y validación en `CrearPermisoUseCase`. Se eliminaron 2 registros de datos de prueba duplicados que habían quedado de la verificación SQL manual de la implementación original de esta tarea.
+>
+> **Actualización (decisión ADR-061, 2026-09-15):** ver detalle completo de la contradicción y la decisión en la nota de `TASK-009` de esta misma fecha. Se construyó la API real: `GET`/`POST /api/v1/permisos` (`05-api.md §60`). Sigue `EN_DESARROLLO`: falta autorización real sobre este endpoint (mismo motivo que `TASK-009`).
 
 ### Objetivo
 
@@ -563,6 +569,8 @@ La lista definitiva debe estar respaldada por las necesidades del sistema.
 `EN_DESARROLLO`
 
 > **Actualización (auditoría TASK-014, 2026-09-14):** el modelo `UsuarioRol` (Domain/Application/Infrastructure, sin API) quedó adelantado dentro de `TASK-010` por instrucción explícita del usuario y no requiere una segunda implementación — auditado en `TASK-014` y confirmado funcionalmente completo: `AsignarRolAUsuarioUseCase`/`ObtenerRolesDeUsuarioUseCase`, PK compuesta `(UsuarioId, RolId)` con FK `Restrict` verificada en SQL Server, y cobertura de tests (Domain + Application) que incluye explícitamente la regla de esta tarea ("un usuario puede tener uno o varios roles" — ver `AsignarRolAUsuarioUseCaseTests.Un_usuario_puede_tener_varios_roles`). Pasa de `PENDIENTE` a `EN_DESARROLLO` (mismo criterio que `TASK-010`/`TASK-011`/`TASK-013`: no se marca `COMPLETADA` porque no tiene API ni autorización real — `progreso.md`, regla de formato #3). Ver la entrada de `TASK-010` en `progreso.md` para el detalle real de lo construido.
+>
+> **Actualización (decisión ADR-061, 2026-09-15):** esta misma nota ("no se marca `COMPLETADA` porque no tiene API...") entraba en contradicción con `05-api.md §55.3`, que decía lo contrario ("confirmado, no pendiente"). Presentada la contradicción al usuario, decidió construir la API real (ver nota de `TASK-009` para el detalle completo de la decisión). El endpoint de asignación es el mismo de `TASK-010` (`POST /api/v1/usuarios/{usuarioId}/roles`, `05-api.md §61.1`) — esta tarea no tiene un endpoint propio adicional. Sigue `EN_DESARROLLO`: falta autorización real (mismo motivo que `TASK-009`).
 
 ### Objetivo
 
@@ -583,6 +591,8 @@ Un usuario puede tener uno o varios roles según las reglas definitivas de autor
 > **Actualización (implementación 2026-09-14):** `RolPermiso` implementado en Domain/Application/Infrastructure según el contrato real de `04-base-datos.md §9.4` (`RolId, PermisoId` — sin `Id` propio, PK compuesta, mismo patrón que `UsuarioRol`). Sin API (ningún endpoint documentado en `05-api.md`). Cierra estructuralmente el modelo `Usuario → UsuarioRol → Rol → RolPermiso → Permiso`; la autorización real (uso efectivo de estos permisos para proteger endpoints) queda fuera de alcance, pertenece a una fase posterior.
 >
 > **Aclaración (auditoría TASK-014, 2026-09-14) — casos de uso de Application:** esta tarea, a diferencia de otras, no nombra casos de uso específicos en su `Regla` (solo "Rol → Permisos"). La documentación no permite determinar por sí sola si `AsignarPermisoARolUseCase`/`ObtenerPermisosDeRolUseCase` son parte del contrato — no es una inconsistencia, es una tarea que deja el detalle de Application sin especificar (mismo caso que `TASK-012`, que tampoco nombraba `AsignarRolAUsuarioUseCase`/`ObtenerRolesDeUsuarioUseCase`). Se documenta la decisión como aclaración: ambos casos de uso son las operaciones de Application estrictamente necesarias para poder gestionar `RolPermiso` en absoluto (sin una operación de asignación, la tabla `RolesPermisos` sería inalcanzable; sin una de consulta, no podría verificarse su contenido) — no se inventó ninguna regla de negocio adicional sobre ellos (mismos criterios de 404/422 ya usados en el resto del bloque). No se creó `EliminarPermisoDeRol`/`ActualizarRolPermisos`/`ReemplazarPermisosDeRol`: ninguno es estrictamente necesario y ninguno está documentado.
+>
+> **Actualización (decisión ADR-061, 2026-09-15):** ver detalle completo de la contradicción y la decisión en la nota de `TASK-009` de esta misma fecha. Se construyó la API real: `POST`/`GET /api/v1/roles/{rolId}/permisos` (`05-api.md §63`), exponiendo exactamente los dos casos de uso ya aclarados arriba (`AsignarPermisoARolUseCase`/`ObtenerPermisosDeRolUseCase`) — sin agregar ninguno nuevo. Sigue `EN_DESARROLLO`: falta autorización real (mismo motivo que `TASK-009`).
 
 ### Objetivo
 

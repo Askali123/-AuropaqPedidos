@@ -2264,7 +2264,333 @@ Si se define el contrato de alcance por sede, se puede agregar un nuevo `IAuthor
 
 ---
 
-# 63. Registro de futuras decisiones
+# 63. ADR-060 — Política de cierre de fase antes de avanzar
+
+### Estado
+
+`ACEPTADA`
+
+### Contexto
+
+`08-tareas.md` §5/§20/§21 define un orden de fases (FASE 0 a FASE 13) y establece explícitamente que
+las fases posteriores al MVP (Consolidación, Pedidos a proveedor, Entregas, Facturación, Seguridad
+avanzada, Calidad, Rendimiento, Despliegue) **no deben iniciarse** hasta que el primer flujo funcional
+(TASK-001 a TASK-035, Fases 0-5) esté estable.
+
+Una auditoría del estado real del proyecto (2026-09-15) confirmó que esto no se respetó: se avanzó en
+paralelo, en forma de vertical slices (`CLAUDE.md §55`), sobre Fases 6, 7, 8, 9 y 10 mientras varias
+tareas de Fases 0-5 seguían sin cerrar (`TASK-001` seguía `PENDIENTE`; `TASK-031`/`TASK-032` seguían
+`PENDIENTE`; ninguna tarea de Fases 1-5 cumplía los 8 criterios de `08-tareas.md` §24 para
+`COMPLETADA`). El resultado es un tablero (`progreso.md`) donde casi todo está `EN_DESARROLLO` a la
+vez, sin un flujo end-to-end formalmente cerrado, y con el riesgo de que la documentación de progreso
+se desincronice del código real (ya ocurrió una vez: la tabla de `FASE 0` reportaba conteos de pruebas
+obsoletos respecto al historial real — ver informe de `TASK-001`, `progreso.md`).
+
+### Decisión
+
+1. **No se revierte el trabajo ya construido en Fases 6-10.** Es código real, compilado y en varios
+   casos probado (`Api.Tests` cubre Consolidación/Pedidos/Entregas/Facturación end-to-end). Revertirlo
+   violaría `CLAUDE.md §46` (no eliminar código sin justificación) sin ningún beneficio real.
+2. **Se declara formalmente el estado real como una desviación documentada, no un error silencioso.**
+   Este ADR es esa declaración.
+3. **A partir de esta decisión, se aplica un gate de cierre de fase — con una excepción explícita para
+   trabajo ya empezado:**
+   - **Bloqueado:** iniciar cualquier tarea que hoy está `PENDIENTE` (sin código real todavía) en una
+     fase `N+1` mientras exista al menos una tarea de la fase `N` que no esté `COMPLETADA` según los 8
+     criterios de `08-tareas.md` §24 (compila, pruebas pasan, cumple criterios de aceptación, respeta
+     reglas de negocio/arquitectura, sin dependencias no autorizadas, sin cambios fuera de alcance, sin
+     lógica hardcodeada, documentación actualizada).
+   - **Permitido:** continuar y cerrar (llevar a `COMPLETADA`) una tarea que ya está `EN_DESARROLLO`
+     en Fases 6-10, aunque su fase esté por delante de una fase anterior todavía sin cerrar. Esto no es
+     "trabajo nuevo": es terminar algo que ya existe, evitando dejarlo indefinidamente a medio construir.
+   - Con el estado real de `progreso.md` al 2026-09-15, esto significa en concreto:
+     - **Se puede seguir cerrando** (ya `EN_DESARROLLO`, código real existente): `TASK-036` a `TASK-046`,
+       `TASK-048` a `TASK-050`.
+     - **Sigue bloqueado hasta cerrar el MVP** (hoy `PENDIENTE`, sin código): `TASK-047`, `TASK-051`, y
+       toda Fase 11-13 (Calidad, Rendimiento, Despliegue) completa.
+     - Esta lista es un corte en el tiempo; si una tarea listada como "se puede seguir cerrando" llega a
+       `COMPLETADA` y aparece una tarea *nueva* no contemplada en `08-tareas.md` para esa misma fase,
+       esa tarea nueva cuenta como bloqueada, no como continuación.
+4. El orden concreto para cerrar lo que falta de Fases 0-5 (MVP) queda documentado en
+   `progreso.md` (`## Próxima tarea`), no en este ADR, porque es una lista operativa que puede
+   ajustarse sin que eso implique una nueva decisión arquitectónica.
+5. Una vez que Fases 0-5 estén 100% `COMPLETADA`, se retoma el trabajo ya iniciado en Fases 6-10
+   (y solo entonces se inician las fases que aún no tienen ningún código, como Calidad/Rendimiento/
+   Despliegue), aplicando el mismo gate hacia adelante.
+
+### Motivo
+
+`08-tareas.md` §2 es explícito: "Claude Code no debe interpretar este documento como una autorización
+para implementar todo el proyecto de una sola vez [...] Debe trabajar tarea por tarea [...] No se debe
+comenzar la siguiente tarea hasta verificar que la anterior cumple sus criterios de aceptación." El
+gate de esta decisión es la forma concreta de hacer cumplible esa regla hacia adelante, después de que
+ya se incumplió una vez.
+
+### Alternativas consideradas
+
+- **Revertir el código de Fases 6-10 hasta cerrar el MVP:** descartada — descarta trabajo funcional
+  real sin ningún beneficio (el código no es incorrecto, solo estaba fuera de secuencia), y viola
+  `CLAUDE.md §46`.
+- **Ignorar la desviación y seguir avanzando donde convenga sin gate:** descartada — es la causa raíz
+  del problema (permite que el tablero de progreso se vuelva no confiable, como ya ocurrió), y
+  contradice `08-tareas.md` §2/§21 explícitamente.
+- **Reescribir `08-tareas.md` para reordenar las fases según lo ya construido:** descartada — el orden
+  de `08-tareas.md` §20 (LOGIN → EMPRESA → SEDE → PERIODO → REQUISICIÓN → ... → REENVIAR) sigue siendo
+  el flujo de negocio correcto y deseado; el problema no es el orden documentado, es que no se respetó.
+- **Gate total sin excepción (bloquear incluso cerrar tareas ya `EN_DESARROLLO` en Fases 6-10 hasta
+  terminar el MVP):** descartada por decisión explícita del usuario — dejaría trabajo real a medio
+  construir indefinidamente (algunas de esas tareas están cerca de `COMPLETADA`) sin ningún beneficio
+  adicional sobre la alternativa elegida; el riesgo que motiva el gate (documentación desincronizada,
+  demasiados frentes abiertos a la vez) ya queda controlado bloqueando solo el trabajo **nuevo**.
+
+### Consecuencias
+
+Ninguna tarea `PENDIENTE` de Fase 6 en adelante recibe trabajo nuevo hasta que Fases 0-5 estén
+formalmente `COMPLETADA` — en particular, `TASK-047`, `TASK-051` y toda Fase 11-13 quedan bloqueadas.
+Las tareas de Fases 6-10 que ya están `EN_DESARROLLO` (`TASK-036` a `TASK-046`, `TASK-048` a `TASK-050`)
+sí pueden seguir avanzando hasta `COMPLETADA` — no se las deja a medio terminar. Esto evita acumular
+trabajo `EN_DESARROLLO` en frentes completamente nuevos, sin desperdiciar el esfuerzo ya invertido en
+los frentes que sí están en marcha. No requiere cambios de código ni de esquema de base de datos — es
+una decisión de proceso.
+
+### Evolución futura
+
+Si en el futuro el equipo decide que el desarrollo en paralelo por fases es preferible (por ejemplo,
+con el equipo dividido en módulos independientes), eso debe registrarse como una nueva decisión que
+reemplace explícitamente este ADR (`§68` — Regla para modificar una decisión existente), no asumirse
+de nuevo tácitamente.
+
+---
+
+# 64. ADR-061 — Exponer API real de administración de Rol/Permiso/UsuarioRol/UsuarioSede/RolPermiso
+
+### Estado
+
+`ACEPTADA`
+
+### Contexto
+
+`TASK-009` a `TASK-013` (`08-tareas.md`) implementaron `UsuarioSede`/`Rol`/`Permiso`/`UsuarioRol`/
+`RolPermiso` completos en Domain/Application/Infrastructure, pero sin ningún endpoint HTTP.
+`05-api.md §55.3` documentaba esto como una decisión **"confirmada, no pendiente"** (de una
+auditoría previa, etiquetada "TASK-014"). Sin embargo, la nota de esa misma auditoría dentro de
+`08-tareas.md` (`TASK-012`) decía lo contrario: que estas tareas no se marcaban `COMPLETADA`
+**justamente porque** les faltaba API — es decir, la propia auditoría dejó la pregunta abierta en
+vez de cerrarla, y dos documentos terminaron afirmando cosas opuestas sobre el mismo punto.
+
+Detectada la contradicción (sesión 2026-09-15, al retomar `TASK-009/010/011/012/013` desde
+`progreso.md`), se presentó al usuario en vez de resolverla unilateralmente — con 3 alternativas:
+construir la API ahora, dejarlas sin API redefiniendo el criterio de cierre, o decidir caso por
+caso. El usuario eligió explícitamente: **construir la API ahora**.
+
+### Decisión
+
+Se expone un contrato HTTP real de administración para estos 5 conceptos (documentado en
+`05-api.md §59` a `§63`):
+
+```text
+GET/POST  /api/v1/roles
+GET/POST  /api/v1/permisos
+GET/POST  /api/v1/usuarios/{usuarioId}/roles
+GET/POST  /api/v1/usuarios/{usuarioId}/sedes
+GET/POST  /api/v1/roles/{rolId}/permisos
+```
+
+Los Controllers son delgados: traducen HTTP a los casos de uso de Application que **ya existían**
+(`CrearRolUseCase`, `ListarRolesUseCase`, `CrearPermisoUseCase`, `ListarPermisosUseCase`,
+`AsignarRolAUsuarioUseCase`, `ObtenerRolesDeUsuarioUseCase`, `AsignarUsuarioASedeUseCase`,
+`ObtenerSedesAutorizadasUseCase`, `AsignarPermisoARolUseCase`, `ObtenerPermisosDeRolUseCase`) —
+esta decisión no agrega lógica de negocio nueva, solo la expone.
+
+### Motivo
+
+Sin una forma de crear roles/permisos y asignarlos que no dependa de escribir SQL a mano, el
+sistema no tiene un camino real hacia la autorización por permisos que ya exige `TASK-049`/`050`
+sobre más endpoints en el futuro — alguien tiene que poder administrar ese catálogo. Mantener la
+"confirmación" de `§55.3` habría dejado esa necesidad sin resolver indefinidamente.
+
+### Alternativas consideradas
+
+- **Mantener la decisión original (sin API)** y redefinir el criterio de `COMPLETADA` de estas 5
+  tareas para que no la exija: descartada por el usuario — deja sin resolver cómo se administran
+  roles/permisos en un entorno real (fuera de tests/seeds).
+- **Decidir caso por caso** (API solo para Rol/Permiso, no para las relaciones N:N): descartada —
+  sin una API de asignación, el catálogo de Rol/Permiso quedaría creado pero inalcanzable para
+  relacionarlo con usuarios, igual que ya se había aclarado para `RolPermiso` en la auditoría
+  `TASK-014` original (`08-tareas.md`, nota de `TASK-013`).
+
+### Consecuencias
+
+Nuevos Controllers (`RolesController`, `PermisosController`) y nuevos endpoints en
+`UsuariosController`. Sin cambios de Domain/Application/Infrastructure (ya existían). Sin
+`[Authorize]` todavía en ninguno de estos endpoints — se agrega en el mismo paso posterior que
+cubre el resto de endpoints nuevos del MVP (ver `progreso.md`, `## Próxima tarea`, bloque A punto
+8), no aquí. Sin `PUT`/`DELETE`/quitar-asignación (no solicitado, `05-api.md §63.3`).
+
+### Evolución futura
+
+Si más adelante se necesita revocar una asignación (quitar un rol de un usuario, un permiso de un
+rol, una sede de un usuario), es una tarea nueva y acotada (un endpoint `DELETE` por relación), no
+una extensión silenciosa de esta decisión.
+
+---
+
+# 65. ADR-062 — Catálogo definitivo de permisos y su mapeo a endpoints (punto 8 del bloque A)
+
+### Estado
+
+`ACEPTADA`
+
+### Contexto
+
+Al cerrar `TASK-031/032` (2026-09-15), el bloque de tareas que cierra el MVP (Fases 0-5) quedó con
+un único punto abierto: autorización real (permiso + alcance) sobre ~50 endpoints nuevos que hoy
+no tienen `[Authorize]`. `06-seguridad.md §9` solo documentaba permisos como "Ejemplos" para
+Requisición/Producto/Pedido/Entrega/Factura — insuficiente para decidir qué permiso protege cada
+endpoint real (Empresa, Sede, Usuario, Rol, Permiso, Categoría, UnidadMedida, Proveedor, Solicitud
+de producto no catalogado, Periodo, y el resto de Requisición). Implementar `[Authorize]` sin este
+catálogo habría significado inventar política de seguridad sobre la marcha, endpoint por
+endpoint, sin coherencia entre módulos — exactamente lo que `CLAUDE.md §67`/`06-seguridad.md §71`
+prohíben.
+
+Por instrucción explícita del usuario ("analiza `docs/` y el dominio, toma una decisión coherente
+y déjala documentada"), se analizó la carpeta `docs/` completa (especialmente `01-reglas-negocio.md`,
+`02-dominio.md`, `06-seguridad.md` completo) y el dominio real (entidades, relaciones, flujos) para
+decidir el catálogo y su mapeo — ver el detalle completo en RN-059 y `06-seguridad.md §9/§52`.
+
+### Decisión
+
+1. **Catálogo de permisos por módulo**, agrupando módulos sin ciclo de vida propio bajo el permiso
+   del módulo que sí lo tiene (Categoría/UnidadMedida → `PRODUCTO_*`; Sede → `ORGANIZACION_*`;
+   Usuario/Rol/Permiso/UsuarioRol/UsuarioSede/RolPermiso → `SEGURIDAD_*`), y permiso propio para
+   los módulos con ciclo de vida independiente (Empresa, Proveedor, Periodo, Requisición). Ver la
+   lista completa en `06-seguridad.md §9`.
+2. **`PRODUCTO_SOLICITAR` como permiso nuevo**, distinto de `PRODUCTO_CREAR`/`PRODUCTO_EDITAR`,
+   para enviar una solicitud de producto no catalogado — justificado porque la matriz conceptual
+   de `06-seguridad.md §53` no le da a "Solicitante" el permiso de crear productos, pero sí debe
+   poder solicitar uno que falta (RN-024).
+3. **Alcance por empresa extendido a todos los endpoints de Requisición** (no solo Enviar/Aprobar),
+   incluyendo una corrección explícita a `GET /requisiciones/{id}` (implementado en TASK-032 sin
+   alcance, antes de este análisis completo de `06-seguridad.md §60/§61`).
+4. **Sin alcance por empresa en Organización/Seguridad/Catálogo/Proveedor/Periodo** — son datos
+   administrativos o de catálogo global, no pertenecen a una empresa específica.
+5. **Mapeo completo endpoint → permiso → alcance documentado en `06-seguridad.md §52`.**
+
+### Motivo
+
+Sin un catálogo decidido, cada sesión futura que toque un endpoint nuevo tendría que volver a
+decidir su seguridad desde cero, con riesgo real de incoherencia entre módulos similares (por
+qué Producto sí necesita `PRODUCTO_EDITAR` y Proveedor no, por ejemplo). Decidirlo una sola vez,
+con la lógica de negocio ya verificada contra el dominio real, evita ese riesgo y deja un punto de
+referencia único para implementar el punto 8 del bloque A.
+
+### Alternativas consideradas
+
+- **Un único permiso `ADMIN` que lo cubra todo:** descartada — viola mínimo privilegio
+  (`06-seguridad.md §19`/§45) y el principio explícito de no dar acceso total a cualquier
+  administrador automáticamente (`§70`).
+- **Un permiso por cada operación CRUD de cada entidad individual** (ej. `SEDE_CREAR` separado de
+  `EMPRESA_CREAR`, `CATEGORIA_CREAR` separado de `PRODUCTO_CREAR`): descartada — ningún RN ni
+  flujo de negocio documentado justifica que alguien pueda administrar Categorías pero no
+  Productos, o Sedes pero no Empresas; habría sido complejidad sin necesidad real
+  (`CLAUDE.md §43`/§71).
+- **Reutilizar `PRODUCTO_CREAR` también para solicitar un producto no catalogado** (sin crear
+  `PRODUCTO_SOLICITAR`): descartada — contradice explícitamente la matriz conceptual de
+  `06-seguridad.md §53`, que no le da ese permiso al Solicitante.
+- **Dejar alcance por empresa fuera de `GET /requisiciones/{id}`** (mantener lo ya implementado en
+  TASK-032): descartada tras leer `06-seguridad.md §60/§61` completos — protegen explícitamente
+  ese mismo endpoint como ejemplo de lo que debe cubrirse.
+
+### Consecuencias
+
+Este ADR **decide** el catálogo y el mapeo; **no implementa** los atributos `[Authorize]` ni siembra
+los permisos nuevos — eso sigue siendo el punto 8 del bloque A (`progreso.md`, `## Próxima tarea`),
+una tarea de código separada. La matriz rol↔permiso (`06-seguridad.md §53`) sigue siendo conceptual:
+qué rol recibe cada permiso es una decisión de negocio distinta, todavía no tomada.
+
+### Evolución futura
+
+Si el negocio define roles reales (más allá de la matriz conceptual) o necesita permisos más
+granulares dentro de un módulo agrupado (por ejemplo, separar quién administra Categorías de quién
+administra Productos), debe registrarse como una decisión nueva que reemplace explícitamente este
+ADR, no como una excepción silenciosa.
+
+---
+
+# 66. ADR-063 — Catálogo definitivo de roles y matriz rol↔permiso
+
+### Estado
+
+`ACEPTADA`
+
+### Contexto
+
+ADR-062 decidió el catálogo de permisos y su mapeo a endpoints, pero dejó explícitamente abierta
+la asignación rol↔permiso ("`06-seguridad.md §53` sigue siendo conceptual"). Por instrucción
+explícita del usuario ("revisa el catálogo/mapeo ya documentado, define bien las reglas de
+negocio, y deja definida la asignación rol↔permiso antes de pasar a implementación"), se completó
+esa asignación usando los 5 roles ya documentados en `06-seguridad.md §8` (nunca se propuso un rol
+nuevo) contra el catálogo íntegro de permisos de ADR-062/RN-059.
+
+### Decisión
+
+1. Se preservan literalmente todas las casillas ya decididas en la matriz conceptual original
+   (`06-seguridad.md §53` anterior a esta sesión).
+2. Se completan las casillas nuevas (Organización, Seguridad, Proveedor, Periodo, `PRODUCTO_SOLICITAR`)
+   siguiendo el criterio de mínimo privilegio: solo `ADMINISTRADOR` administra Organización/
+   Seguridad/Periodo; `COMPRAS` administra Proveedor; todos los roles operativos ven
+   `ORGANIZACION_VER`/`PERIODO_VER` (los necesitan para operar) pero no para administrar.
+3. **Administrador NO recibe una excepción de alcance por empresa** — queda sujeto a la misma
+   regla de alcance que cualquier otro rol para Requisición. La matriz conceptual original sí
+   sugería ese bypass ("Ver requisiciones: Amplio"); se decide explícitamente no implementarlo
+   todavía, por falta de un requisito de negocio documentado y por `06-seguridad.md §45`
+   (las excepciones administrativas deben definirse explícitamente, nunca asumirse).
+4. Se agrega una regla de negocio nueva, no derivada solo de la matriz sino de
+   `06-seguridad.md §62` (prevención de escalamiento de privilegios): ningún usuario puede
+   asignarse un rol o permiso a sí mismo, ni con `SEGURIDAD_ADMINISTRAR`. Debe implementarse como
+   una validación explícita en `AsignarRolAUsuarioUseCase` al mismo tiempo que el punto 8.
+
+Detalle completo, fila por fila, en RN-060 y la matriz en `06-seguridad.md §53`.
+
+### Motivo
+
+Sin esta matriz, sembrar `RolPermiso` en el punto 8 habría requerido decidir la asignación
+ad hoc en medio de la implementación — exactamente el patrón que ya generó la ambigüedad
+resuelta en ADR-062. Decidirla antes, con la lógica de negocio explícita, deja la implementación
+como trabajo puramente mecánico (crear los registros, aplicar los atributos).
+
+### Alternativas consideradas
+
+- **Dar a `Administrador` alcance amplio (sin restricción de empresa) como sugería la matriz
+  original:** descartada por ahora — no hay necesidad de negocio documentada, y el mecanismo de
+  alcance actual (`AlcanceRequisicionAuthorizationHandler`) no distingue roles; agregar esa
+  distinción es una ampliación de alcance mayor que nadie pidió todavía. Queda como evolución
+  futura explícita, no como decisión de esta sesión.
+- **Inventar roles más granulares** (ej. separar "Gestor de catálogo" de "Gestor de
+  requisiciones", dado que `GESTOR_REQUISICIONES` termina con permisos de ambos): descartada — la
+  matriz original ya le daba ambos conjuntos de permisos al mismo rol; dividirlo sería cambiar una
+  decisión de negocio ya tomada sin que el usuario lo pidiera.
+- **No decidir la prevención de auto-escalamiento ahora** (dejarla para cuando se implemente el
+  punto 8, sin registrarla como regla): descartada — `06-seguridad.md §62` ya la exige
+  explícitamente; documentarla ahora evita que se omita al implementar.
+
+### Consecuencias
+
+`06-seguridad.md §8/§53` dejan de ser conceptuales. El punto 8 del bloque A (`progreso.md`) puede
+implementarse sin ninguna decisión de negocio pendiente sobre permisos, roles o su asignación.
+`AsignarRolAUsuarioUseCase` necesitará conocer la identidad del usuario que ejecuta la operación
+(hoy no la recibe) para poder rechazar la auto-asignación — esto es un cambio de firma menor a
+implementar junto con el resto del punto 8, no una decisión de negocio nueva.
+
+### Evolución futura
+
+Si el negocio confirma la necesidad de un superadministrador con alcance amplio entre empresas, o
+de roles más granulares, deben registrarse como decisiones nuevas que reemplacen explícitamente
+los puntos 3 y 2 de esta decisión respectivamente — no como excepciones silenciosas.
+
+---
+
+# 67. Registro de futuras decisiones
 
 Las nuevas decisiones importantes deben agregarse al final utilizando el siguiente formato:
 
@@ -2302,7 +2628,7 @@ Las nuevas decisiones importantes deben agregarse al final utilizando el siguien
 
 ---
 
-# 64. Regla para modificar una decisión existente
+# 68. Regla para modificar una decisión existente
 
 Una decisión aceptada no debe cambiarse silenciosamente.
 
@@ -2329,7 +2655,7 @@ Debe quedar documentado:
 
 ---
 
-# 65. Principio final de arquitectura
+# 69. Principio final de arquitectura
 
 La arquitectura de AuropaqPedidos debe buscar el siguiente equilibrio:
 
@@ -2364,7 +2690,7 @@ La arquitectura debe servir al negocio y no convertirse en el negocio.
 
 ---
 
-# 66. Regla maestra del proyecto
+# 70. Regla maestra del proyecto
 
 Ante cualquier nueva funcionalidad, antes de escribir código se debe responder:
 

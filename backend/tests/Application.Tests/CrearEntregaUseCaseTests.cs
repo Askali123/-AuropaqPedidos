@@ -6,6 +6,7 @@ using AuropaqPedidos.Application.PedidosProveedor;
 using AuropaqPedidos.Application.PedidosProveedor.Dtos;
 using AuropaqPedidos.Domain.Entities;
 using AuropaqPedidos.Domain.Exceptions;
+using Microsoft.Extensions.Logging.Abstractions;
 
 namespace Application.Tests;
 
@@ -24,6 +25,7 @@ public class CrearEntregaUseCaseTests
         public FakeSedeRepository Sedes { get; } = new();
         public FakeGeneradorDeIdentificadores Ids { get; } = new();
         public FakeTransaccionDeEntrega Transaccion { get; } = new();
+        public FakeAuditoriaRepository Auditoria { get; } = new();
 
         public Periodo Periodo { get; } = new(
             1, 2026, 9,
@@ -39,7 +41,7 @@ public class CrearEntregaUseCaseTests
             Proveedores.Agregar(Proveedor);
         }
 
-        public CrearEntregaUseCase CrearEntregaUseCase() => new(Entregas, Pedidos, Ids);
+        public CrearEntregaUseCase CrearEntregaUseCase() => new(Entregas, Pedidos, Auditoria, Ids, NullLogger<CrearEntregaUseCase>.Instance);
         public AgregarDetalleEntregaUseCase AgregarDetalleUseCase() => new(Entregas, Pedidos, Ids, Transaccion);
         public AgregarDistribucionEntregaUseCase AgregarDistribucionUseCase() => new(Entregas, Sedes, Ids);
         public CalcularCantidadPendienteUseCase CalcularPendienteUseCase() => new(Pedidos, Entregas);
@@ -66,7 +68,8 @@ public class CrearEntregaUseCaseTests
             consolidacion.AgregarAsignacion(Ids.Siguiente(), Ids.Siguiente(), requisicion, detalleReq, cantidadNecesaria);
             Consolidaciones.Guardar(consolidacion);
 
-            var pedidoUseCase = new CrearPedidoProveedorUseCase(Pedidos, Consolidaciones, Proveedores, Ids);
+            var pedidoUseCase = new CrearPedidoProveedorUseCase(
+                Pedidos, Consolidaciones, Proveedores, Auditoria, Ids, NullLogger<CrearPedidoProveedorUseCase>.Instance);
             var pedido = pedidoUseCase.Ejecutar(Fecha, new CrearPedidoProveedorRequest(consolidacion.Id, Proveedor.Id, "PO-001"));
 
             var detallePedidoUseCase = new AgregarDetallePedidoProveedorUseCase(Pedidos, Ids);
@@ -93,6 +96,24 @@ public class CrearEntregaUseCaseTests
         Assert.Equal(pedido.Id, respuesta.PedidoProveedorId);
         Assert.Equal("REM-001", respuesta.NumeroRemision);
         Assert.Empty(respuesta.Detalles);
+    }
+
+    // TASK-056: "registro de entrega" es uno de los 6 ejemplos documentados en
+    // 04-base-datos.md §33. usuarioId es null aquí porque este endpoint todavía no exige JWT.
+    [Fact]
+    public void Crear_una_entrega_registra_un_evento_de_auditoria()
+    {
+        var escenario = new Escenario();
+        var (pedido, _) = escenario.CrearPedidoConUnDetalle(escenario.CrearProducto("Papel higiénico"), 85, 100);
+
+        var respuesta = escenario.CrearEntregaUseCase().Ejecutar(Fecha, new CrearEntregaRequest(pedido.Id, "REM-001"));
+
+        // CrearPedidoConUnDetalle ya registró su propio evento de auditoria ("PedidoProveedor");
+        // esta prueba solo verifica el que agrega CrearEntregaUseCase.
+        var registro = Assert.Single(escenario.Auditoria.Registros, r => r.Entidad == "Entrega");
+        Assert.Equal(respuesta.Id, registro.EntidadId);
+        Assert.Equal("CREAR", registro.Accion);
+        Assert.Null(registro.UsuarioId);
     }
 
     [Fact]
@@ -267,7 +288,9 @@ public class CrearEntregaUseCaseTests
         escenario.Consolidaciones.Guardar(consolidacion);
 
         // Pedido creado pero NUNCA enviado (sigue en BORRADOR).
-        var pedidoUseCase = new CrearPedidoProveedorUseCase(escenario.Pedidos, escenario.Consolidaciones, escenario.Proveedores, escenario.Ids);
+        var pedidoUseCase = new CrearPedidoProveedorUseCase(
+            escenario.Pedidos, escenario.Consolidaciones, escenario.Proveedores, escenario.Auditoria, escenario.Ids,
+            NullLogger<CrearPedidoProveedorUseCase>.Instance);
         var pedido = pedidoUseCase.Ejecutar(Fecha, new CrearPedidoProveedorRequest(consolidacion.Id, escenario.Proveedor.Id, "PO-999"));
 
         Assert.Throws<ReglaDeNegocioException>(() =>

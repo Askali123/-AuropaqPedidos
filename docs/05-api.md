@@ -2149,9 +2149,18 @@ segundo `POST` con el mismo `correo` responde `422` (`REGLA_DE_NEGOCIO_VIOLADA`,
 ## 55.3 Fuera de alcance de estos dos endpoints (confirmado, no pendiente)
 
 Sin `GET /api/v1/usuarios/{id}`, sin `PUT`/`PATCH`/`DELETE`, sin activar/desactivar — ninguno
-existe en código ni fue solicitado por `TASK-008`. `UsuarioSede`/`Rol`/`UsuarioRol`/`Permiso`/
-`RolPermiso` (`TASK-009`/`010`/`011`/`012`/`013`) no tienen ningún endpoint — confirmado en la
-auditoría `TASK-014`, ver `progreso.md`.
+existe en código ni fue solicitado por `TASK-008`.
+
+> **Corrección (2026-09-15):** esta sección decía también que `UsuarioSede`/`Rol`/`UsuarioRol`/
+> `Permiso`/`RolPermiso` no tendrían ningún endpoint, "confirmado en la auditoría TASK-014". Esa
+> nota entraba en contradicción con la propia auditoría `TASK-014` (`08-tareas.md`, notas de
+> `TASK-009` a `TASK-013`), que dejaba "sin API" como el motivo explícito por el que esas tareas
+> no llegaban a `COMPLETADA` — es decir, la misma auditoría señalaba la falta de API como un hueco
+> a resolver, no como algo cerrado para siempre. Detectada la contradicción, se presentó al
+> usuario (no se resolvió unilateralmente) y decidió explícitamente: **sí construir la API real**
+> de administración de `Rol`/`Permiso`/`UsuarioRol`/`UsuarioSede`/`RolPermiso`, documentada abajo
+> en `§59` a `§63`. Ver el detalle de la decisión en `progreso.md` (entrada de esta fecha) y
+> `07-decisiones-arquitectura.md` (ADR-061).
 
 ---
 
@@ -2330,3 +2339,185 @@ identidad autenticada, no del cliente"*. El resto de las rutas de `Requisicion` 
 Alcance por sede (ambigüedad reportada, `§58.1`). `UsuarioEmpresa`/`UsuarioAlcance`/tablas de
 alcance nuevas — se reutiliza `Usuario.Empresa` ya existente. Cache de alcance. Endpoints
 distintos a `enviar`/`aprobar` (sin contrato documentado para el resto). Frontend.
+
+---
+
+# 59. Roles (TASK-010, decisión 2026-09-15 — ver `§55.3`)
+
+Application/Infrastructure ya existían (`CrearRolUseCase`/`ListarRolesUseCase`); esta sección
+documenta el contrato HTTP que antes no existía.
+
+## 59.1 Listar roles
+
+```http
+GET /api/v1/roles
+```
+
+Devuelve todos los roles, sin filtrar por `Activo` (ninguna regla documentada exige ese filtro —
+mismo criterio que `§11.1` para Empresas).
+
+```json
+{
+  "data": [
+    { "id": 1, "nombre": "Solicitante", "descripcion": "Crea y envía requisiciones", "activo": true }
+  ]
+}
+```
+
+## 59.2 Crear rol
+
+```http
+POST /api/v1/roles
+```
+
+Request:
+
+```json
+{
+  "nombre": "Solicitante",
+  "descripcion": "Crea y envía requisiciones"
+}
+```
+
+`descripcion` es opcional. Rol es **GLOBAL** (sin `EmpresaId`, `04-base-datos.md §9.1`). Sin
+validación de unicidad de `Nombre` (no documentada). Responde `201 Created`.
+
+---
+
+# 60. Permisos (TASK-011, decisión 2026-09-15 — ver `§55.3`)
+
+## 60.1 Listar permisos
+
+```http
+GET /api/v1/permisos
+```
+
+```json
+{
+  "data": [
+    { "id": 1, "codigo": "REQUISICION_CREAR", "nombre": "Crear requisición", "descripcion": null }
+  ]
+}
+```
+
+## 60.2 Crear permiso
+
+```http
+POST /api/v1/permisos
+```
+
+Request:
+
+```json
+{
+  "codigo": "REQUISICION_CREAR",
+  "nombre": "Crear requisición",
+  "descripcion": "Permite crear una requisición en BORRADOR"
+}
+```
+
+`descripcion` es opcional. `codigo` es único **GLOBAL** (RN-055/ADR-056): un segundo `POST` con el
+mismo `codigo` responde `422` (`REGLA_DE_NEGOCIO_VIOLADA`). Responde `201 Created`.
+
+---
+
+# 61. Usuario-Rol (TASK-010/012, decisión 2026-09-15 — ver `§55.3`)
+
+## 61.1 Asignar rol a un usuario
+
+```http
+POST /api/v1/usuarios/{usuarioId}/roles
+```
+
+Request:
+
+```json
+{ "rolId": 1 }
+```
+
+| Situación | Resultado |
+| --- | --- |
+| Usuario o Rol inexistente | `404 Not Found` |
+| El usuario ya tiene ese rol asignado | `422 Unprocessable Entity` |
+| Asignación válida | `201 Created`, `{ "data": { "usuarioId": ..., "rolId": ... } }` |
+
+## 61.2 Consultar los roles de un usuario
+
+```http
+GET /api/v1/usuarios/{usuarioId}/roles
+```
+
+Satisface el criterio de aceptación de `TASK-012` ("un usuario puede tener uno o varios roles").
+`404` si el usuario no existe. Respuesta: lista de `RolResponse` (misma forma que `§59.1`).
+
+---
+
+# 62. Usuario-Sede (TASK-009, decisión 2026-09-15 — ver `§55.3`)
+
+## 62.1 Asignar una sede a un usuario
+
+```http
+POST /api/v1/usuarios/{usuarioId}/sedes
+```
+
+Request:
+
+```json
+{ "sedeId": 1 }
+```
+
+| Situación | Resultado |
+| --- | --- |
+| Usuario o Sede inexistente | `404 Not Found` |
+| El usuario ya tiene acceso a esa sede | `422 Unprocessable Entity` |
+| Usuario y Sede de empresas distintas (RN-002, aislamiento multiempresa) | `422 Unprocessable Entity` |
+| Asignación válida | `201 Created`, `{ "data": { "usuarioId": ..., "sedeId": ... } }` |
+
+## 62.2 Consultar las sedes autorizadas de un usuario
+
+```http
+GET /api/v1/usuarios/{usuarioId}/sedes
+```
+
+Satisface el criterio de aceptación de `TASK-009` ("el sistema debe poder determinar las sedes
+autorizadas de un usuario"). `404` si el usuario no existe. Respuesta: lista de `SedeResponse`
+(misma forma que `§12.1`).
+
+---
+
+# 63. Rol-Permiso (TASK-013, decisión 2026-09-15 — ver `§55.3`)
+
+## 63.1 Asignar un permiso a un rol
+
+```http
+POST /api/v1/roles/{rolId}/permisos
+```
+
+Request:
+
+```json
+{ "permisoId": 1 }
+```
+
+| Situación | Resultado |
+| --- | --- |
+| Rol o Permiso inexistente | `404 Not Found` |
+| El rol ya tiene ese permiso asignado | `422 Unprocessable Entity` |
+| Asignación válida | `201 Created`, `{ "data": { "rolId": ..., "permisoId": ... } }` |
+
+## 63.2 Consultar los permisos de un rol
+
+```http
+GET /api/v1/roles/{rolId}/permisos
+```
+
+`404` si el rol no existe. Respuesta: lista de `PermisoResponse` (misma forma que `§60.1`).
+
+## 63.3 Fuera de alcance de estos 5 bloques (§59-63), confirmado — no pendiente
+
+Sin `PUT`/`DELETE`/activar-desactivar para `Rol`/`Permiso` (no solicitado). Sin
+`EliminarPermisoDeRol`/`EliminarRolDeUsuario`/`EliminarSedeDeUsuario` (quitar una asignación no
+está documentado como necesidad — mismo criterio ya aplicado en la auditoría `TASK-014` para
+`RolPermiso`, `08-tareas.md` `TASK-013`). Sin `[Authorize]` en ninguno de estos endpoints todavía:
+la autorización real sobre ellos es un paso posterior que cubre todos los endpoints nuevos del
+MVP a la vez (ver `progreso.md`, `## Próxima tarea`), no una tarea de este bloque.

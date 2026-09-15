@@ -21,6 +21,8 @@ public sealed class ListarProductosUseCase
     public IReadOnlyList<ProductoResponse> Ejecutar() =>
         _productos.ObtenerTodos()
             .Select(p => new ProductoResponse(
-                p.Id, p.Nombre, p.CodigoInterno, p.UnidadMedida.Codigo, p.UnidadMedida.Nombre, p.Activo))
+                p.Id, p.Nombre, p.CodigoInterno, p.Descripcion,
+                p.Categoria.Id, p.Categoria.Nombre,
+                p.UnidadMedida.Id, p.UnidadMedida.Codigo, p.UnidadMedida.Nombre, p.Activo))
             .ToList();
 }

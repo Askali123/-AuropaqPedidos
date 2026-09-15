@@ -4,6 +4,7 @@ obj/
 *.user
 *.suo
 .vs/
+TestResults/
 
 # Node (frontend) — frontend/.gitignore ya cubre node_modules/dist localmente;
 # se repite aquí por si algo corre fuera de esa carpeta.

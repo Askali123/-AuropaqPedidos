@@ -12,4 +12,6 @@ internal sealed class FakeProductoRepository : IProductoRepository
     public Producto? ObtenerPorId(int id) => _productos.TryGetValue(id, out var producto) ? producto : null;
 
     public IReadOnlyList<Producto> ObtenerTodos() => _productos.Values.OrderBy(p => p.Nombre).ToList();
+
+    public void Guardar(Producto producto) => _productos[producto.Id] = producto;
 }

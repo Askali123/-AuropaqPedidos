@@ -44,4 +44,39 @@ public class UnidadMedidaTests
         unidad.Activar();
         Assert.True(unidad.Activo);
     }
+
+    [Fact]
+    public void ActualizarDatos_cambia_codigo_y_nombre_sin_afectar_el_estado()
+    {
+        var unidad = new UnidadMedida(1, "CAJA", "Caja");
+        unidad.Desactivar();
+
+        unidad.ActualizarDatos("CJA", "Caja grande");
+
+        Assert.Equal("CJA", unidad.Codigo);
+        Assert.Equal("Caja grande", unidad.Nombre);
+        Assert.False(unidad.Activo);
+    }
+
+    [Theory]
+    [InlineData("")]
+    [InlineData("   ")]
+    [InlineData(null)]
+    public void ActualizarDatos_no_permite_codigo_vacio(string? codigoInvalido)
+    {
+        var unidad = new UnidadMedida(1, "CAJA", "Caja");
+
+        Assert.Throws<ReglaDeNegocioException>(() => unidad.ActualizarDatos(codigoInvalido!, "Caja"));
+    }
+
+    [Theory]
+    [InlineData("")]
+    [InlineData("   ")]
+    [InlineData(null)]
+    public void ActualizarDatos_no_permite_nombre_vacio(string? nombreInvalido)
+    {
+        var unidad = new UnidadMedida(1, "CAJA", "Caja");
+
+        Assert.Throws<ReglaDeNegocioException>(() => unidad.ActualizarDatos("CAJA", nombreInvalido!));
+    }
 }

@@ -21,6 +21,7 @@ public sealed class AuropaqPedidosDbContext : DbContext
     public DbSet<Categoria> Categorias => Set<Categoria>();
     public DbSet<UnidadMedida> UnidadesMedida => Set<UnidadMedida>();
     public DbSet<Producto> Productos => Set<Producto>();
+    public DbSet<ProductoProveedor> ProductosProveedores => Set<ProductoProveedor>();
     public DbSet<SolicitudProductoCatalogo> SolicitudesProductoCatalogo => Set<SolicitudProductoCatalogo>();
     public DbSet<Requisicion> Requisiciones => Set<Requisicion>();
     public DbSet<Consolidacion> Consolidaciones => Set<Consolidacion>();
@@ -28,6 +29,7 @@ public sealed class AuropaqPedidosDbContext : DbContext
     public DbSet<PedidoProveedor> PedidosProveedor => Set<PedidoProveedor>();
     public DbSet<Entrega> Entregas => Set<Entrega>();
     public DbSet<Factura> Facturas => Set<Factura>();
+    public DbSet<Auditoria> Auditorias => Set<Auditoria>();
 
     // DetalleRequisicion, DistribucionRequisicion y HistorialRequisicion NO se exponen como
     // DbSet propios: solo son alcanzables a través de Requisicion.Detalles/.Historial, para no

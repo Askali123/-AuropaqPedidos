@@ -200,19 +200,21 @@ PERMITIR
 
 Un rol representa una responsabilidad funcional.
 
-Ejemplos conceptuales:
+> **Catálogo definitivo (decisión 2026-09-15, RN-060/ADR-063).** Estos 5 roles dejan de ser
+> "ejemplos conceptuales" — son el catálogo real, con la asignación de permisos definida en
+> `§53`. Un rol adicional (o uno de estos con otro nombre) puede agregarse en el futuro si el
+> negocio lo requiere; eso es una decisión nueva, no una corrección de esta.
 
 ```text
-SOLICITANTE
-GESTOR_REQUISICIONES
-COMPRAS
-RECEPCION
-ADMINISTRADOR
+SOLICITANTE            — crea y envía requisiciones de su propia empresa
+GESTOR_REQUISICIONES   — revisa, aprueba/devuelve requisiciones, y administra el catálogo de productos
+COMPRAS                — administra proveedores, y (fases futuras) pedidos y facturas
+RECEPCION              — (fase futura) registra entregas
+ADMINISTRADOR          — administra Organización/Seguridad, y tiene todos los demás permisos
 ```
 
-Estos nombres son ejemplos.
-
-No deben considerarse definitivos hasta validar las responsabilidades reales del negocio.
+Estos roles son responsabilidades, no personas (`RN-001`/`CLAUDE.md §11`) — el mismo usuario puede
+tener más de uno si el negocio lo requiere (`UsuarioRol` es N:N, `TASK-012`).
 
 ---
 
@@ -220,9 +222,40 @@ No deben considerarse definitivos hasta validar las responsabilidades reales del
 
 Los permisos representan acciones específicas.
 
-Ejemplos:
+> **Catálogo definitivo (decisión 2026-09-15, RN-059/ADR-062).** Esta sección listaba los
+> permisos de Requisición/Producto/Pedido/Entrega/Factura como "Ejemplos" — insuficiente para
+> proteger los ~50 endpoints reales que ya existen sin `[Authorize]` (TASK-049/050 punto
+> pendiente). Se analizó `docs/01-reglas-negocio.md`, el dominio real y la lógica de negocio de
+> cada módulo, y se decidió el catálogo completo. Ya no son "ejemplos": es el catálogo que debe
+> usarse al implementar autorización sobre cada endpoint. Ver RN-059 para la justificación
+> completa y ADR-062 para las alternativas consideradas.
 
 ```text
+# Organización (Empresa, Sede — administrativo, sin alcance por empresa: administra empresas)
+ORGANIZACION_VER
+ORGANIZACION_ADMINISTRAR
+
+# Seguridad (Usuario, Rol, Permiso, UsuarioRol, UsuarioSede, RolPermiso — administrativo)
+SEGURIDAD_VER
+SEGURIDAD_ADMINISTRAR
+
+# Catálogo (Categoria, UnidadMedida, Producto, Solicitud de producto no catalogado — global,
+# sin alcance por empresa: el catálogo es compartido por todas las empresas)
+PRODUCTO_VER
+PRODUCTO_CREAR
+PRODUCTO_EDITAR
+PRODUCTO_SOLICITAR      # enviar una solicitud de producto no catalogado (rol Solicitante)
+
+# Proveedor (global, sin alcance por empresa)
+PROVEEDOR_VER
+PROVEEDOR_CREAR
+PROVEEDOR_EDITAR
+
+# Periodo (global, sin alcance por empresa)
+PERIODO_VER
+PERIODO_CREAR
+
+# Requisición (transaccional por empresa — CON alcance por empresa en todos, RN-058 extendida)
 REQUISICION_CREAR
 REQUISICION_VER
 REQUISICION_MODIFICAR
@@ -230,10 +263,8 @@ REQUISICION_ENVIAR
 REQUISICION_APROBAR
 REQUISICION_DEVOLVER
 
-PRODUCTO_VER
-PRODUCTO_CREAR
-PRODUCTO_EDITAR
-
+# Fases posteriores al MVP (documentadas para cuando se aborden — no implementar antes de esas
+# fases, CLAUDE.md §57)
 PEDIDO_VER
 PEDIDO_CREAR
 PEDIDO_CONSOLIDAR
@@ -246,6 +277,8 @@ FACTURA_REGISTRAR
 ```
 
 Los permisos deben ser independientes de los nombres de personas.
+
+Ver `§52` para el mapeo completo endpoint → permiso → alcance.
 
 ---
 
@@ -1302,21 +1335,28 @@ Debe considerarse comprometido y reemplazarse/revocarse.
 
 Todas las rutas protegidas deben declarar claramente sus requisitos de autorización.
 
-Conceptualmente:
+> **Mapeo definitivo (decisión 2026-09-15, RN-059/ADR-062).** Reemplaza el ejemplo conceptual
+> anterior (solo cubría 3 rutas). Este es el mapeo real de los endpoints existentes hoy sin
+> `[Authorize]` (ver `progreso.md`, `## Próxima tarea`, bloque A punto 8) — la implementación
+> (agregar los atributos, sembrar los permisos) sigue pendiente; esto es la decisión de qué debe
+> exigir cada uno, no el código todavía.
 
-```text
-GET /api/v1/requisiciones
-    ↓
-REQUISICION_VER
-
-POST /api/v1/requisiciones/{id}/enviar
-    ↓
-REQUISICION_ENVIAR
-
-POST /api/v1/requisiciones/{id}/aprobar
-    ↓
-REQUISICION_APROBAR
-```
+| Endpoint | Permiso | Alcance por empresa |
+| --- | --- | --- |
+| `GET/POST/PUT /empresas`, `POST /empresas/{id}/sedes`, `PUT /sedes/{id}` | `ORGANIZACION_VER` (GET) / `ORGANIZACION_ADMINISTRAR` (POST/PUT) | No — administra empresas, no puede estar atado a una |
+| `GET/POST /usuarios`, `GET/POST /usuarios/{id}/roles`, `GET/POST /usuarios/{id}/sedes`, `GET/POST /roles`, `GET/POST /permisos`, `GET/POST /roles/{id}/permisos` | `SEGURIDAD_VER` (GET) / `SEGURIDAD_ADMINISTRAR` (POST) | No — administración cruzada de empresas (§62, prevención de escalamiento de privilegios aplica igual) |
+| `GET/POST/PUT /categorias`, `GET/POST/PUT /unidades-medida`, `GET/POST/PUT /productos` | `PRODUCTO_VER` (GET) / `PRODUCTO_CREAR` (POST) / `PRODUCTO_EDITAR` (PUT) | No — catálogo compartido por todas las empresas |
+| `POST /solicitudes-producto` | `PRODUCTO_SOLICITAR` | Sí — un solicitante propone para su propia empresa (mismo criterio que `REQUISICION_CREAR`) |
+| `GET /solicitudes-producto/pendientes`, `POST .../homologar`, `POST .../crear-producto`, `POST .../rechazar` | `PRODUCTO_VER` (GET) / `PRODUCTO_CREAR` (resolución) | No — un gestor de catálogo resuelve solicitudes de cualquier empresa (§12, gestor central) |
+| `GET/POST/PUT /proveedores` | `PROVEEDOR_VER` (GET) / `PROVEEDOR_CREAR` (POST) / `PROVEEDOR_EDITAR` (PUT) | No — catálogo global |
+| `GET/POST /periodos` | `PERIODO_VER` (GET) / `PERIODO_CREAR` (POST) | No — el periodo operativo es global, no por empresa |
+| `POST /requisiciones` (crear/continuar), `POST .../detalles`, `POST .../distribuciones`, `POST .../guardar` | `REQUISICION_CREAR` | Sí |
+| `PUT .../detalles/{id}`, `DELETE .../detalles/{id}`, `PUT .../distribuciones/{id}`, `DELETE .../distribuciones/{id}` | `REQUISICION_MODIFICAR` | Sí |
+| `GET /requisiciones`, `GET /requisiciones/{id}`, `GET /requisiciones/pendientes-revision` | `REQUISICION_VER` | Sí — **corrige una decisión previa**: `GET /requisiciones/{id}` se implementó (TASK-032, 2026-09-15) sin alcance por empresa, razonando que `05-api.md §54.6` dejaba abierta una futura bandeja de revisión cruzada; este análisis más completo de `§60`/`§61` concluye que debe protegerse igual que el resto — pendiente de corregir en el código al implementar este punto |
+| `POST .../enviar` | `REQUISICION_ENVIAR` | Sí — **ya implementado** (TASK-049/050) |
+| `POST .../aprobar` | `REQUISICION_APROBAR` | Sí — **ya implementado** (TASK-049/050) |
+| `POST .../iniciar-revision` | `REQUISICION_APROBAR` (reutilizado — mismo actor que aprueba/devuelve; sin permiso propio porque `08-tareas.md` no le asigna un dueño distinto, ver ambigüedad ya reportada sobre esta transición) | Sí |
+| `POST .../devolver` | `REQUISICION_DEVOLVER` | Sí |
 
 Esto facilita:
 
@@ -1327,28 +1367,53 @@ Esto facilita:
 
 ---
 
-# 53. Matriz conceptual de permisos
+# 53. Matriz de permisos por rol
 
-La matriz definitiva debe construirse con el negocio.
+> **Matriz definitiva (decisión 2026-09-15, RN-060/ADR-063).** Reemplaza la tabla conceptual
+> anterior — construida ahora sobre el catálogo completo de permisos (`§9`), no solo Requisición.
+> Es la asignación real a usar al sembrar `Rol`/`Permiso`/`RolPermiso` (API ya existe, TASK-010/
+> 011/013). Justificación completa de cada fila en RN-060.
 
-Ejemplo inicial:
+| Permiso | Solicitante | Gestor_Requisiciones | Compras | Recepcion | Administrador |
+| --- | :-: | :-: | :-: | :-: | :-: |
+| `REQUISICION_CREAR` | ✓ | ✓ | - | - | ✓ |
+| `REQUISICION_VER` | ✓ (alcance) | ✓ (alcance) | - | - | ✓ (alcance — ver nota) |
+| `REQUISICION_MODIFICAR` | ✓ (alcance) | ✓ (alcance) | - | - | ✓ (alcance) |
+| `REQUISICION_ENVIAR` | ✓ (alcance) | ✓ (alcance) | - | - | ✓ (alcance) |
+| `REQUISICION_APROBAR` | - | ✓ (alcance) | - | - | ✓ (alcance) |
+| `REQUISICION_DEVOLVER` | - | ✓ (alcance) | - | - | ✓ (alcance) |
+| `PRODUCTO_VER` | ✓ | ✓ | ✓ | - | ✓ |
+| `PRODUCTO_SOLICITAR` | ✓ | - | - | - | ✓ |
+| `PRODUCTO_CREAR` | - | ✓ | ✓ | - | ✓ |
+| `PRODUCTO_EDITAR` | - | ✓ | ✓ | - | ✓ |
+| `PROVEEDOR_VER` | - | - | ✓ | - | ✓ |
+| `PROVEEDOR_CREAR` | - | - | ✓ | - | ✓ |
+| `PROVEEDOR_EDITAR` | - | - | ✓ | - | ✓ |
+| `PERIODO_VER` | ✓ | ✓ | - | - | ✓ |
+| `PERIODO_CREAR` | - | - | - | - | ✓ |
+| `ORGANIZACION_VER` | ✓ | ✓ | ✓ | ✓ | ✓ |
+| `ORGANIZACION_ADMINISTRAR` | - | - | - | - | ✓ |
+| `SEGURIDAD_VER` | - | - | - | - | ✓ |
+| `SEGURIDAD_ADMINISTRAR` | - | - | - | - | ✓ |
+| `PEDIDO_VER` *(fase futura)* | - | - | ✓ | ✓ | ✓ |
+| `PEDIDO_CREAR` *(fase futura)* | - | - | ✓ | - | ✓ |
+| `PEDIDO_CONSOLIDAR` *(fase futura)* | - | - | ✓ | - | ✓ |
+| `ENTREGA_VER` *(fase futura)* | - | - | ✓ | ✓ | ✓ |
+| `ENTREGA_REGISTRAR` *(fase futura)* | - | - | - | ✓ | ✓ |
+| `FACTURA_VER` *(fase futura)* | - | - | ✓ | - | ✓ |
+| `FACTURA_REGISTRAR` *(fase futura)* | - | - | ✓ | - | ✓ |
 
-| Acción                       | Solicitante |  Gestor | Compras | Recepción | Administrador |
-| ---------------------------- | ----------: | ------: | ------: | --------: | ------------: |
-| Crear requisición            |           ✓ |       ✓ |       - |         - |             ✓ |
-| Modificar requisición propia |           ✓ |       ✓ |       - |         - |             ✓ |
-| Enviar requisición           |           ✓ |       ✓ |       - |         - |             ✓ |
-| Ver requisiciones            |     Alcance | Alcance | Alcance |   Alcance |        Amplio |
-| Aprobar requisición          |           - |       ✓ |       - |         - |             ✓ |
-| Devolver requisición         |           - |       ✓ |       - |         - |             ✓ |
-| Crear producto               |           - |       ✓ |       ✓ |         - |             ✓ |
-| Crear pedido                 |           - |       - |       ✓ |         - |             ✓ |
-| Registrar entrega            |           - |       - |       - |         ✓ |             ✓ |
-| Registrar factura            |           - |       - |       ✓ |         - |             ✓ |
+**Nota sobre `Administrador` y alcance por empresa:** la versión conceptual anterior de esta
+tabla mostraba "Ver requisiciones: Amplio" para Administrador (sin restricción de empresa). Se
+decidió explícitamente **no** implementar ese bypass todavía — Administrador queda sujeto a la
+misma verificación de alcance por empresa que cualquier otro rol para las acciones de Requisición.
+Ver RN-060 para la justificación (`CLAUDE.md §45`: las excepciones administrativas deben
+definirse explícitamente, no asumirse).
 
-Esta tabla es conceptual.
-
-No debe implementarse como verdad definitiva hasta validar los roles reales.
+Las filas marcadas *(fase futura)* corresponden a permisos de Pedido/Entrega/Factura — no se
+implementan `[Authorize]` para ellos todavía porque los endpoints mismos no existen (Fases 7-9,
+posteriores al MVP, `CLAUDE.md §57`). Se documentan aquí para que la asignación de roles quede
+completa desde ya y no haya que rediseñarla cuando se aborden esas fases.
 
 ---
 

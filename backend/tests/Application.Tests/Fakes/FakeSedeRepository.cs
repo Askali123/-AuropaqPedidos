@@ -13,4 +13,6 @@ internal sealed class FakeSedeRepository : ISedeRepository
 
     public IReadOnlyList<Sede> ObtenerPorEmpresa(int empresaId) =>
         _sedes.Values.Where(s => s.Empresa.Id == empresaId).OrderBy(s => s.Nombre).ToList();
+
+    public void Guardar(Sede sede) => _sedes[sede.Id] = sede;
 }

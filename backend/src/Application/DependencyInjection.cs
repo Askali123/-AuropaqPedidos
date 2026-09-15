@@ -17,6 +17,11 @@ public static class DependencyInjection
     public static IServiceCollection AddApplication(this IServiceCollection services)
     {
         services.AddScoped<ListarEmpresasUseCase>();
+        services.AddScoped<CrearEmpresaUseCase>();
+        services.AddScoped<ObtenerEmpresaUseCase>();
+        services.AddScoped<ActualizarEmpresaUseCase>();
+        services.AddScoped<CrearSedeUseCase>();
+        services.AddScoped<ActualizarSedeUseCase>();
         services.AddScoped<CrearUsuarioUseCase>();
         services.AddScoped<ListarUsuariosUseCase>();
         services.AddScoped<AsignarUsuarioASedeUseCase>();
@@ -37,10 +42,38 @@ public static class DependencyInjection
         services.AddScoped<UsuarioTieneAlcanceSobreRequisicionUseCase>();
         services.AddScoped<ListarSedesPorEmpresaUseCase>();
         services.AddScoped<ListarProductosUseCase>();
+        services.AddScoped<CrearProductoUseCase>();
+        services.AddScoped<ObtenerProductoUseCase>();
+        services.AddScoped<ActualizarProductoUseCase>();
+        services.AddScoped<AsociarProveedorAProductoUseCase>();
+        services.AddScoped<ActualizarProductoProveedorUseCase>();
+        services.AddScoped<ListarProveedoresDeProductoUseCase>();
+        services.AddScoped<ListarProductosDeProveedorUseCase>();
+        services.AddScoped<ListarCategoriasUseCase>();
+        services.AddScoped<CrearCategoriaUseCase>();
+        services.AddScoped<ObtenerCategoriaUseCase>();
+        services.AddScoped<ActualizarCategoriaUseCase>();
+        services.AddScoped<ListarUnidadesMedidaUseCase>();
+        services.AddScoped<CrearUnidadMedidaUseCase>();
+        services.AddScoped<ObtenerUnidadMedidaUseCase>();
+        services.AddScoped<ActualizarUnidadMedidaUseCase>();
+        services.AddScoped<ListarProveedoresUseCase>();
+        services.AddScoped<CrearProveedorUseCase>();
+        services.AddScoped<ObtenerProveedorUseCase>();
+        services.AddScoped<ActualizarProveedorUseCase>();
+        services.AddScoped<SolicitarProductoNoCatalogadoUseCase>();
+        services.AddScoped<ListarSolicitudesPendientesUseCase>();
+        services.AddScoped<HomologarProductoUseCase>();
+        services.AddScoped<CrearProductoDesdeSolicitudUseCase>();
+        services.AddScoped<RechazarSolicitudUseCase>();
         services.AddScoped<ListarPeriodosUseCase>();
+        services.AddScoped<ObtenerPeriodoUseCase>();
         services.AddScoped<CrearPeriodoUseCase>();
 
         services.AddScoped<IniciarOContinuarRequisicionUseCase>();
+        services.AddScoped<ObtenerRequisicionUseCase>();
+        services.AddScoped<ListarRequisicionesUseCase>();
+        services.AddScoped<ListarRequisicionesPendientesDeRevisionUseCase>();
         services.AddScoped<AgregarDetalleRequisicionUseCase>();
         services.AddScoped<ActualizarDetalleRequisicionUseCase>();
         services.AddScoped<EliminarDetalleRequisicionUseCase>();

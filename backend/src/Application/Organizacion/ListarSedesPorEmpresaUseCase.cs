@@ -24,7 +24,7 @@ public sealed class ListarSedesPorEmpresaUseCase
             ?? throw new RecursoNoEncontradoException($"La empresa {empresaId} no existe.");
 
         return _sedes.ObtenerPorEmpresa(empresaId)
-            .Select(s => new SedeResponse(s.Id, s.Nombre, s.Activo))
+            .Select(s => new SedeResponse(s.Id, s.Nombre, s.Direccion, s.Ciudad, s.Departamento, s.Telefono, s.Contacto, s.Activo))
             .ToList();
     }
 }

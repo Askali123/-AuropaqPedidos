@@ -8,4 +8,7 @@ public interface IProductoRepository
 
     // Soporta el selector de producto del Frontend (TASK: habilitar consultas para Requisiciones).
     IReadOnlyList<Producto> ObtenerTodos();
+
+    // TASK-016: crear/actualizar. Mismo patrón que IUsuarioRepository.Guardar.
+    void Guardar(Producto producto);
 }

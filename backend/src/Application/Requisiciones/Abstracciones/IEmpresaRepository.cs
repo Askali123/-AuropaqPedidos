@@ -8,4 +8,7 @@ public interface IEmpresaRepository
 
     // Soporta el selector de empresa del Frontend (TASK: habilitar consultas para Requisiciones).
     IReadOnlyList<Empresa> ObtenerTodas();
+
+    // TASK-006: crear/actualizar. Mismo patrón que IUsuarioRepository.Guardar.
+    void Guardar(Empresa empresa);
 }

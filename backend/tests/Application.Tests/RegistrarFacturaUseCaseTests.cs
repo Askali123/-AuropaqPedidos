@@ -4,6 +4,7 @@ using AuropaqPedidos.Application.Facturas;
 using AuropaqPedidos.Application.Facturas.Dtos;
 using AuropaqPedidos.Domain.Entities;
 using AuropaqPedidos.Domain.Exceptions;
+using Microsoft.Extensions.Logging.Abstractions;
 
 namespace Application.Tests;
 
@@ -48,7 +49,7 @@ public class RegistrarFacturaUseCaseTests
             Pedidos.Guardar(Pedido);
         }
 
-        public RegistrarFacturaUseCase CrearUseCase() => new(Facturas, Proveedores, Pedidos, Ids);
+        public RegistrarFacturaUseCase CrearUseCase() => new(Facturas, Proveedores, Pedidos, Ids, NullLogger<RegistrarFacturaUseCase>.Instance);
 
         public RegistrarFacturaRequest CrearRequest(int? proveedorId = null, int? pedidoId = null) => new(
             ProveedorId: proveedorId ?? Proveedor.Id,

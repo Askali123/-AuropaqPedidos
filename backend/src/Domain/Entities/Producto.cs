@@ -50,4 +50,30 @@ public sealed class Producto
     public void Activar() => Activo = true;
 
     public void Desactivar() => Activo = false;
+
+    // TASK-016, 05-api.md §13.4. Activo se cambia con Activar()/Desactivar(), no aquí. Sin
+    // unicidad de CodigoInterno: 04-base-datos.md §12 la deja pendiente de confirmación del
+    // negocio (mismo criterio ya usado para Empresa.Nit; no se inventa aquí).
+    public void ActualizarDatos(
+        string nombre,
+        Categoria categoria,
+        UnidadMedida unidadMedida,
+        string? codigoInterno = null,
+        string? descripcion = null)
+    {
+        if (string.IsNullOrWhiteSpace(nombre))
+            throw new ReglaDeNegocioException("El nombre del producto es obligatorio.");
+
+        if (categoria is null)
+            throw new ReglaDeNegocioException("Un producto debe pertenecer a una categoría.");
+
+        if (unidadMedida is null)
+            throw new ReglaDeNegocioException("Un producto debe tener una unidad de medida.");
+
+        Nombre = nombre;
+        Categoria = categoria;
+        UnidadMedida = unidadMedida;
+        CodigoInterno = codigoInterno;
+        Descripcion = descripcion;
+    }
 }

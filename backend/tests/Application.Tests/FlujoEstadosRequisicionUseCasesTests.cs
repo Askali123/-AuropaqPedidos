@@ -4,6 +4,7 @@ using AuropaqPedidos.Application.Requisiciones.Dtos;
 using AuropaqPedidos.Domain.Entities;
 using AuropaqPedidos.Domain.Enums;
 using AuropaqPedidos.Domain.Exceptions;
+using Microsoft.Extensions.Logging.Abstractions;
 
 namespace Application.Tests;
 
@@ -31,7 +32,7 @@ public class FlujoEstadosRequisicionUseCasesTests
     public void Enviar_requisicion_completa_cambia_su_estado()
     {
         var (escenario, requisicion) = CrearRequisicionListaParaEnviar();
-        var useCase = new EnviarRequisicionUseCase(escenario.Requisiciones);
+        var useCase = new EnviarRequisicionUseCase(escenario.Requisiciones, NullLogger<EnviarRequisicionUseCase>.Instance);
 
         var respuesta = useCase.Ejecutar(requisicion.Id, usuarioId: 1, DentroDeVentana);
 
@@ -48,7 +49,7 @@ public class FlujoEstadosRequisicionUseCasesTests
         var agregarDetalle = new AgregarDetalleRequisicionUseCase(escenario.Requisiciones, escenario.Productos, escenario.Ids);
         agregarDetalle.Ejecutar(requisicion.Id, new AgregarDetalleRequisicionRequest(escenario.Producto.Id, 100, null));
 
-        var useCase = new EnviarRequisicionUseCase(escenario.Requisiciones);
+        var useCase = new EnviarRequisicionUseCase(escenario.Requisiciones, NullLogger<EnviarRequisicionUseCase>.Instance);
 
         Assert.Throws<ReglaDeNegocioException>(() => useCase.Ejecutar(requisicion.Id, 1, DentroDeVentana));
     }
@@ -57,7 +58,7 @@ public class FlujoEstadosRequisicionUseCasesTests
     public void Enviar_requisicion_inexistente_lanza_no_encontrado()
     {
         var escenario = new EscenarioDePrueba();
-        var useCase = new EnviarRequisicionUseCase(escenario.Requisiciones);
+        var useCase = new EnviarRequisicionUseCase(escenario.Requisiciones, NullLogger<EnviarRequisicionUseCase>.Instance);
 
         Assert.Throws<RecursoNoEncontradoException>(() => useCase.Ejecutar(999, 1, DentroDeVentana));
     }
@@ -66,7 +67,7 @@ public class FlujoEstadosRequisicionUseCasesTests
     public void Iniciar_revision_solo_es_valido_despues_de_enviar()
     {
         var (escenario, requisicion) = CrearRequisicionListaParaEnviar();
-        new EnviarRequisicionUseCase(escenario.Requisiciones).Ejecutar(requisicion.Id, 1, DentroDeVentana);
+        new EnviarRequisicionUseCase(escenario.Requisiciones, NullLogger<EnviarRequisicionUseCase>.Instance).Ejecutar(requisicion.Id, 1, DentroDeVentana);
 
         var iniciarRevision = new IniciarRevisionRequisicionUseCase(escenario.Requisiciones);
         var respuesta = iniciarRevision.Ejecutar(requisicion.Id, usuarioId: 1, DentroDeVentana);
@@ -78,10 +79,10 @@ public class FlujoEstadosRequisicionUseCasesTests
     public void Aprobar_requisicion_en_revision_cambia_su_estado()
     {
         var (escenario, requisicion) = CrearRequisicionListaParaEnviar();
-        new EnviarRequisicionUseCase(escenario.Requisiciones).Ejecutar(requisicion.Id, 1, DentroDeVentana);
+        new EnviarRequisicionUseCase(escenario.Requisiciones, NullLogger<EnviarRequisicionUseCase>.Instance).Ejecutar(requisicion.Id, 1, DentroDeVentana);
         new IniciarRevisionRequisicionUseCase(escenario.Requisiciones).Ejecutar(requisicion.Id, 1, DentroDeVentana);
 
-        var aprobar = new AprobarRequisicionUseCase(escenario.Requisiciones);
+        var aprobar = new AprobarRequisicionUseCase(escenario.Requisiciones, NullLogger<AprobarRequisicionUseCase>.Instance);
         var respuesta = aprobar.Ejecutar(requisicion.Id, usuarioId: 2, DentroDeVentana, new AprobarRequisicionRequest("Cumple los requisitos"));
 
         Assert.Equal(RequisicionEstado.Aprobada.ToString(), respuesta.Estado);
@@ -91,10 +92,10 @@ public class FlujoEstadosRequisicionUseCasesTests
     public void Devolver_requisicion_en_revision_exige_motivo_y_cambia_su_estado()
     {
         var (escenario, requisicion) = CrearRequisicionListaParaEnviar();
-        new EnviarRequisicionUseCase(escenario.Requisiciones).Ejecutar(requisicion.Id, 1, DentroDeVentana);
+        new EnviarRequisicionUseCase(escenario.Requisiciones, NullLogger<EnviarRequisicionUseCase>.Instance).Ejecutar(requisicion.Id, 1, DentroDeVentana);
         new IniciarRevisionRequisicionUseCase(escenario.Requisiciones).Ejecutar(requisicion.Id, 1, DentroDeVentana);
 
-        var devolver = new DevolverRequisicionUseCase(escenario.Requisiciones);
+        var devolver = new DevolverRequisicionUseCase(escenario.Requisiciones, NullLogger<DevolverRequisicionUseCase>.Instance);
         var respuesta = devolver.Ejecutar(requisicion.Id, usuarioId: 2, DentroDeVentana, new DevolverRequisicionRequest("Cantidad incorrecta"));
 
         Assert.Equal(RequisicionEstado.Devuelta.ToString(), respuesta.Estado);
@@ -105,10 +106,10 @@ public class FlujoEstadosRequisicionUseCasesTests
     public void Devolver_sin_motivo_propaga_error_de_dominio()
     {
         var (escenario, requisicion) = CrearRequisicionListaParaEnviar();
-        new EnviarRequisicionUseCase(escenario.Requisiciones).Ejecutar(requisicion.Id, 1, DentroDeVentana);
+        new EnviarRequisicionUseCase(escenario.Requisiciones, NullLogger<EnviarRequisicionUseCase>.Instance).Ejecutar(requisicion.Id, 1, DentroDeVentana);
         new IniciarRevisionRequisicionUseCase(escenario.Requisiciones).Ejecutar(requisicion.Id, 1, DentroDeVentana);
 
-        var devolver = new DevolverRequisicionUseCase(escenario.Requisiciones);
+        var devolver = new DevolverRequisicionUseCase(escenario.Requisiciones, NullLogger<DevolverRequisicionUseCase>.Instance);
 
         Assert.Throws<ReglaDeNegocioException>(() =>
             devolver.Ejecutar(requisicion.Id, 2, DentroDeVentana, new DevolverRequisicionRequest("")));
@@ -118,9 +119,9 @@ public class FlujoEstadosRequisicionUseCasesTests
     public void Requisicion_devuelta_puede_corregirse_y_reenviarse()
     {
         var (escenario, requisicion) = CrearRequisicionListaParaEnviar();
-        new EnviarRequisicionUseCase(escenario.Requisiciones).Ejecutar(requisicion.Id, 1, DentroDeVentana);
+        new EnviarRequisicionUseCase(escenario.Requisiciones, NullLogger<EnviarRequisicionUseCase>.Instance).Ejecutar(requisicion.Id, 1, DentroDeVentana);
         new IniciarRevisionRequisicionUseCase(escenario.Requisiciones).Ejecutar(requisicion.Id, 1, DentroDeVentana);
-        var respuestaDevuelta = new DevolverRequisicionUseCase(escenario.Requisiciones)
+        var respuestaDevuelta = new DevolverRequisicionUseCase(escenario.Requisiciones, NullLogger<DevolverRequisicionUseCase>.Instance)
             .Ejecutar(requisicion.Id, 2, DentroDeVentana, new DevolverRequisicionRequest("Corregir cantidad"));
 
         var detalleId = respuestaDevuelta.Detalles[0].Id;
@@ -133,7 +134,7 @@ public class FlujoEstadosRequisicionUseCasesTests
         agregarDistribucion.Ejecutar(requisicion.Id, detalleId, escenario.SedeAlterna.Id, 20);
 
         // reenvío
-        var reenviar = new EnviarRequisicionUseCase(escenario.Requisiciones);
+        var reenviar = new EnviarRequisicionUseCase(escenario.Requisiciones, NullLogger<EnviarRequisicionUseCase>.Instance);
         var respuesta = reenviar.Ejecutar(requisicion.Id, usuarioId: 1, DentroDeVentana.AddHours(1));
 
         Assert.Equal(RequisicionEstado.Enviada.ToString(), respuesta.Estado);

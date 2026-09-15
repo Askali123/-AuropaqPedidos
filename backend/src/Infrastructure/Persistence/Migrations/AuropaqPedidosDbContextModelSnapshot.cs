@@ -46,6 +46,43 @@ namespace AuropaqPedidos.Infrastructure.Persistence.Migrations
                     b.ToTable("AsignacionesConsolidacion", (string)null);
                 });
 
+            modelBuilder.Entity("AuropaqPedidos.Domain.Entities.Auditoria", b =>
+                {
+                    b.Property<int>("Id")
+                        .HasColumnType("int");
+
+                    b.Property<string>("Accion")
+                        .IsRequired()
+                        .HasMaxLength(50)
+                        .HasColumnType("nvarchar(50)");
+
+                    b.Property<string>("DatosAnteriores")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<string>("DatosNuevos")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<string>("Entidad")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("nvarchar(100)");
+
+                    b.Property<int>("EntidadId")
+                        .HasColumnType("int");
+
+                    b.Property<DateTime>("Fecha")
+                        .HasColumnType("datetime2");
+
+                    b.Property<int?>("UsuarioId")
+                        .HasColumnType("int");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("Entidad", "EntidadId");
+
+                    b.ToTable("Auditorias", (string)null);
+                });
+
             modelBuilder.Entity("AuropaqPedidos.Domain.Entities.Categoria", b =>
                 {
                     b.Property<int>("Id")
@@ -551,6 +588,43 @@ namespace AuropaqPedidos.Infrastructure.Persistence.Migrations
                     b.HasIndex("UnidadMedidaId");
 
                     b.ToTable("Productos", (string)null);
+                });
+
+            modelBuilder.Entity("AuropaqPedidos.Domain.Entities.ProductoProveedor", b =>
+                {
+                    b.Property<int>("Id")
+                        .HasColumnType("int");
+
+                    b.Property<bool>("Activo")
+                        .HasColumnType("bit");
+
+                    b.Property<string>("CategoriaProveedor")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<string>("CodigoProveedor")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<string>("DescripcionProveedor")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<int>("ProductoId")
+                        .HasColumnType("int");
+
+                    b.Property<int>("ProveedorId")
+                        .HasColumnType("int");
+
+                    b.Property<string>("UnidadProveedor")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("ProveedorId");
+
+                    b.HasIndex("ProductoId", "ProveedorId")
+                        .IsUnique();
+
+                    b.ToTable("ProductosProveedores", (string)null);
                 });
 
             modelBuilder.Entity("AuropaqPedidos.Domain.Entities.Proveedor", b =>
@@ -1086,6 +1160,25 @@ namespace AuropaqPedidos.Infrastructure.Persistence.Migrations
                     b.Navigation("Categoria");
 
                     b.Navigation("UnidadMedida");
+                });
+
+            modelBuilder.Entity("AuropaqPedidos.Domain.Entities.ProductoProveedor", b =>
+                {
+                    b.HasOne("AuropaqPedidos.Domain.Entities.Producto", "Producto")
+                        .WithMany()
+                        .HasForeignKey("ProductoId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("AuropaqPedidos.Domain.Entities.Proveedor", "Proveedor")
+                        .WithMany()
+                        .HasForeignKey("ProveedorId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.Navigation("Producto");
+
+                    b.Navigation("Proveedor");
                 });
 
             modelBuilder.Entity("AuropaqPedidos.Domain.Entities.Requisicion", b =>

@@ -1,4 +1,5 @@
 using System.Net;
+using System.Net.Http.Headers;
 using System.Net.Http.Json;
 using AuropaqPedidos.Domain.Entities;
 using AuropaqPedidos.Infrastructure.Persistence.Context;
@@ -9,6 +10,7 @@ namespace Api.Tests;
 // Pruebas de integración de los endpoints de solo lectura para Empresas/Sedes/Productos/Periodos
 // (TASK: habilitar las consultas necesarias para el Frontend de Requisiciones, docs/05-api.md
 // §54.6), a través de la Api real (Controllers + Application + Infrastructure + SQL Server).
+// RN-059/060 (punto 8, 2026-09-15): ahora exigen JWT + ORGANIZACION_VER/PRODUCTO_VER/PERIODO_VER.
 public sealed class CatalogosFlujoTests : IClassFixture<ApiWebApplicationFactory>
 {
     private readonly ApiWebApplicationFactory _factory;
@@ -27,12 +29,27 @@ public sealed class CatalogosFlujoTests : IClassFixture<ApiWebApplicationFactory
         return await Escenario.CrearAsync(db, numero);
     }
 
+    private async Task<string> TokenAsync(int numero, int empresaId, params string[] permisos)
+    {
+        using var scope = _factory.Services.CreateScope();
+        var db = scope.ServiceProvider.GetRequiredService<AuropaqPedidosDbContext>();
+        return await AutorizacionHelper.CrearTokenConPermisosAsync(_factory, db, numero, empresaId, permisos);
+    }
+
+    private async Task<HttpResponseMessage> GetAutenticadoAsync(string url, string token)
+    {
+        var solicitud = new HttpRequestMessage(HttpMethod.Get, url);
+        solicitud.Headers.Authorization = new AuthenticationHeaderValue("Bearer", token);
+        return await _cliente.SendAsync(solicitud);
+    }
+
     [Fact]
     public async Task Listar_empresas_incluye_la_empresa_creada()
     {
         var escenario = await NuevoEscenarioAsync(101);
+        var token = await TokenAsync(101, escenario.EmpresaId, "ORGANIZACION_VER");
 
-        var respuesta = await _cliente.GetAsync("/api/v1/empresas");
+        var respuesta = await GetAutenticadoAsync("/api/v1/empresas", token);
 
         Assert.Equal(HttpStatusCode.OK, respuesta.StatusCode);
         var cuerpo = await respuesta.Content.ReadFromJsonAsync<Envoltorio<List<EmpresaDto>>>();
@@ -44,8 +61,9 @@ public sealed class CatalogosFlujoTests : IClassFixture<ApiWebApplicationFactory
     {
         var escenario1 = await NuevoEscenarioAsync(102);
         var escenario2 = await NuevoEscenarioAsync(103);
+        var token = await TokenAsync(102, escenario1.EmpresaId, "ORGANIZACION_VER");
 
-        var respuesta = await _cliente.GetAsync($"/api/v1/empresas/{escenario1.EmpresaId}/sedes");
+        var respuesta = await GetAutenticadoAsync($"/api/v1/empresas/{escenario1.EmpresaId}/sedes", token);
 
         Assert.Equal(HttpStatusCode.OK, respuesta.StatusCode);
         var cuerpo = await respuesta.Content.ReadFromJsonAsync<Envoltorio<List<SedeDto>>>();
@@ -61,8 +79,9 @@ public sealed class CatalogosFlujoTests : IClassFixture<ApiWebApplicationFactory
         var empresaSinSedes = new Empresa(9001, "Empresa sin sedes");
         db.Empresas.Add(empresaSinSedes);
         await db.SaveChangesAsync();
+        var token = await TokenAsync(9001, empresaSinSedes.Id, "ORGANIZACION_VER");
 
-        var respuesta = await _cliente.GetAsync($"/api/v1/empresas/{empresaSinSedes.Id}/sedes");
+        var respuesta = await GetAutenticadoAsync($"/api/v1/empresas/{empresaSinSedes.Id}/sedes", token);
 
         Assert.Equal(HttpStatusCode.OK, respuesta.StatusCode);
         var cuerpo = await respuesta.Content.ReadFromJsonAsync<Envoltorio<List<SedeDto>>>();
@@ -72,7 +91,10 @@ public sealed class CatalogosFlujoTests : IClassFixture<ApiWebApplicationFactory
     [Fact]
     public async Task Listar_sedes_de_una_empresa_inexistente_devuelve_404()
     {
-        var respuesta = await _cliente.GetAsync("/api/v1/empresas/999999/sedes");
+        var escenario = await NuevoEscenarioAsync(106);
+        var token = await TokenAsync(106, escenario.EmpresaId, "ORGANIZACION_VER");
+
+        var respuesta = await GetAutenticadoAsync("/api/v1/empresas/999999/sedes", token);
 
         Assert.Equal(HttpStatusCode.NotFound, respuesta.StatusCode);
         var error = await respuesta.Content.ReadFromJsonAsync<ErrorEnvoltorio>();
@@ -83,8 +105,9 @@ public sealed class CatalogosFlujoTests : IClassFixture<ApiWebApplicationFactory
     public async Task Listar_productos_incluye_el_producto_creado_con_su_unidad_de_medida()
     {
         var escenario = await NuevoEscenarioAsync(104);
+        var token = await TokenAsync(104, escenario.EmpresaId, "PRODUCTO_VER");
 
-        var respuesta = await _cliente.GetAsync("/api/v1/productos");
+        var respuesta = await GetAutenticadoAsync("/api/v1/productos", token);
 
         Assert.Equal(HttpStatusCode.OK, respuesta.StatusCode);
         var cuerpo = await respuesta.Content.ReadFromJsonAsync<Envoltorio<List<ProductoDto>>>();
@@ -96,8 +119,9 @@ public sealed class CatalogosFlujoTests : IClassFixture<ApiWebApplicationFactory
     public async Task Listar_periodos_incluye_el_periodo_creado()
     {
         var escenario = await NuevoEscenarioAsync(105);
+        var token = await TokenAsync(105, escenario.EmpresaId, "PERIODO_VER");
 
-        var respuesta = await _cliente.GetAsync("/api/v1/periodos");
+        var respuesta = await GetAutenticadoAsync("/api/v1/periodos", token);
 
         Assert.Equal(HttpStatusCode.OK, respuesta.StatusCode);
         var cuerpo = await respuesta.Content.ReadFromJsonAsync<Envoltorio<List<PeriodoDto>>>();

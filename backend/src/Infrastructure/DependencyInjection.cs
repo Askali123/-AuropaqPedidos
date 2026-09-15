@@ -1,3 +1,4 @@
+using AuropaqPedidos.Application.Auditorias.Abstracciones;
 using AuropaqPedidos.Application.Consolidaciones.Abstracciones;
 using AuropaqPedidos.Application.Entregas.Abstracciones;
 using AuropaqPedidos.Application.Facturas.Abstracciones;
@@ -37,14 +38,19 @@ public static class DependencyInjection
         services.AddScoped<IRolPermisoRepository, RolPermisoRepositoryEfCore>();
         services.AddScoped<IPeriodoRepository, PeriodoRepositoryEfCore>();
         services.AddScoped<IProductoRepository, ProductoRepositoryEfCore>();
+        services.AddScoped<IProductoProveedorRepository, ProductoProveedorRepositoryEfCore>();
+        services.AddScoped<ICategoriaRepository, CategoriaRepositoryEfCore>();
+        services.AddScoped<IUnidadMedidaRepository, UnidadMedidaRepositoryEfCore>();
         services.AddScoped<ISedeRepository, SedeRepositoryEfCore>();
         services.AddScoped<IRequisicionRepository, RequisicionRepositoryEfCore>();
         services.AddScoped<IConsolidacionRepository, ConsolidacionRepositoryEfCore>();
         services.AddScoped<IProveedorRepository, ProveedorRepositoryEfCore>();
+        services.AddScoped<ISolicitudProductoCatalogoRepository, SolicitudProductoCatalogoRepositoryEfCore>();
         services.AddScoped<IPedidoProveedorRepository, PedidoProveedorRepositoryEfCore>();
         services.AddScoped<IEntregaRepository, EntregaRepositoryEfCore>();
         services.AddScoped<ITransaccionDeEntrega, TransaccionDeEntregaEfCore>();
         services.AddScoped<IFacturaRepository, FacturaRepositoryEfCore>();
+        services.AddScoped<IAuditoriaRepository, AuditoriaRepositoryEfCore>();
         services.AddScoped<IGeneradorDeIdentificadores, GeneradorDeIdentificadoresEfCore>();
         services.AddSingleton<IPasswordHasher, PasswordHasherAdapter>();
         services.AddScoped<IGeneradorDeToken, JwtTokenGenerator>();

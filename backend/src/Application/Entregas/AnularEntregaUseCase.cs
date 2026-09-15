@@ -2,6 +2,7 @@ using AuropaqPedidos.Application.Entregas.Abstracciones;
 using AuropaqPedidos.Application.Entregas.Dtos;
 using AuropaqPedidos.Application.PedidosProveedor.Abstracciones;
 using AuropaqPedidos.Domain.Enums;
+using Microsoft.Extensions.Logging;
 
 namespace AuropaqPedidos.Application.Entregas;
 
@@ -17,12 +18,16 @@ public sealed class AnularEntregaUseCase
     private readonly IEntregaRepository _entregas;
     private readonly IPedidoProveedorRepository _pedidos;
     private readonly ITransaccionDeEntrega _transaccion;
+    private readonly ILogger<AnularEntregaUseCase> _logger;
 
-    public AnularEntregaUseCase(IEntregaRepository entregas, IPedidoProveedorRepository pedidos, ITransaccionDeEntrega transaccion)
+    public AnularEntregaUseCase(
+        IEntregaRepository entregas, IPedidoProveedorRepository pedidos, ITransaccionDeEntrega transaccion,
+        ILogger<AnularEntregaUseCase> logger)
     {
         _entregas = entregas;
         _pedidos = pedidos;
         _transaccion = transaccion;
+        _logger = logger;
     }
 
     public EntregaResponse Ejecutar(int entregaId)
@@ -48,6 +53,8 @@ public sealed class AnularEntregaUseCase
                 _pedidos.Guardar(pedido);
             }
         });
+
+        _logger.LogInformation("Entrega {EntregaId} anulada", entregaId);
 
         return EntregaMapper.AResponse(entrega);
     }
