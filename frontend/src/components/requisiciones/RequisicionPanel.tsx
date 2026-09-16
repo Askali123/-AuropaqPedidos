@@ -16,9 +16,6 @@ interface RequisicionPanelProps {
   sedes: Sede[];
   sedesCargando: boolean;
   sedesError: ApiRequestError | null;
-  // Placeholder temporal (docs/05-api.md §54.1): lo necesita el header X-Usuario-Id de Enviar.
-  // Mismo campo "Usuario (Id)" que ya existe en RequisicionesPage para crear/recuperar.
-  usuarioId: string;
   onActualizado: (requisicion: Requisicion) => void;
 }
 
@@ -43,7 +40,6 @@ export function RequisicionPanel({
   sedes,
   sedesCargando,
   sedesError,
-  usuarioId,
   onActualizado,
 }: RequisicionPanelProps) {
   const [guardando, setGuardando] = useState(false);
@@ -127,7 +123,7 @@ export function RequisicionPanel({
     setErrorEnviar(null);
     setEnviadoOk(false);
     try {
-      const resultado = await requisicionesService.enviar(requisicion.id, Number(usuarioId));
+      const resultado = await requisicionesService.enviar(requisicion.id);
       onActualizado(resultado);
       setEnviadoOk(true);
     } catch (error) {
@@ -145,7 +141,7 @@ export function RequisicionPanel({
     setErrorIniciarRevision(null);
     setRevisionIniciadaOk(false);
     try {
-      const resultado = await requisicionesService.iniciarRevision(requisicion.id, Number(usuarioId));
+      const resultado = await requisicionesService.iniciarRevision(requisicion.id);
       onActualizado(resultado);
       setRevisionIniciadaOk(true);
     } catch (error) {
@@ -166,7 +162,7 @@ export function RequisicionPanel({
     setErrorAprobar(null);
     setAprobadoOk(false);
     try {
-      const resultado = await requisicionesService.aprobar(requisicion.id, Number(usuarioId), {
+      const resultado = await requisicionesService.aprobar(requisicion.id, {
         observacion: observacionAprobar || undefined,
       });
       onActualizado(resultado);
@@ -187,7 +183,7 @@ export function RequisicionPanel({
     setErrorDevolver(null);
     setDevueltoOk(false);
     try {
-      const resultado = await requisicionesService.devolver(requisicion.id, Number(usuarioId), {
+      const resultado = await requisicionesService.devolver(requisicion.id, {
         motivo: motivoDevolver,
       });
       onActualizado(resultado);

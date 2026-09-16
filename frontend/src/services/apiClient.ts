@@ -1,4 +1,5 @@
 import { API_BASE_URL } from "../config/api";
+import { limpiarSesion, obtenerToken } from "../auth/session";
 import type { ApiErrorResponse } from "../types/api";
 
 // Error tipado a partir del envoltorio { error: { code, message, details } } que devuelve
@@ -21,11 +22,16 @@ export class ApiRequestError extends Error {
 async function request<TResponse>(path: string, options: RequestInit): Promise<TResponse> {
   let respuesta: Response;
 
+  // Token adjuntado automáticamente en cada request (docs/05-api.md §56): los controllers ya no
+  // aceptan X-Usuario-Id/X-Empresa-Id, todo el actor/empresa se deriva del JWT en el backend.
+  const token = obtenerToken();
+
   try {
     respuesta = await fetch(`${API_BASE_URL}${path}`, {
       ...options,
       headers: {
         "Content-Type": "application/json",
+        ...(token ? { Authorization: `Bearer ${token}` } : {}),
         ...options.headers,
       },
     });
@@ -38,6 +44,14 @@ async function request<TResponse>(path: string, options: RequestInit): Promise<T
   const cuerpo = await respuesta.json().catch(() => null);
 
   if (!respuesta.ok) {
+    // Un 401 con un token ya guardado significa que la sesión ya no es válida (expiró, o el
+    // usuario fue desactivado) — se limpia para que la UI vuelva al login. Un 401 sin token
+    // (p. ej. login con credenciales inválidas) no es "sesión expirada": se deja propagar tal
+    // cual, el formulario de login ya sabe mostrarlo.
+    if (respuesta.status === 401 && token) {
+      limpiarSesion();
+    }
+
     const error = (cuerpo as ApiErrorResponse | null)?.error;
     throw new ApiRequestError(
       respuesta.status,
