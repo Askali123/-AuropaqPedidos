@@ -11,6 +11,12 @@ internal sealed class FakeConsolidacionRepository : IConsolidacionRepository
 
     public Consolidacion? ObtenerPorId(int id) => _consolidaciones.TryGetValue(id, out var consolidacion) ? consolidacion : null;
 
+    public IReadOnlyList<Consolidacion> Listar(int? periodoId) =>
+        _consolidaciones.Values
+            .Where(c => periodoId is null || c.Periodo.Id == periodoId)
+            .OrderByDescending(c => c.FechaCreacion)
+            .ToList();
+
     public IReadOnlyList<int> ObtenerIdsDetallesRequisicionYaConsolidados() =>
         _consolidaciones.Values
             .SelectMany(c => c.Detalles)

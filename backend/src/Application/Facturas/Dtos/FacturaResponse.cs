@@ -5,6 +5,7 @@ public sealed record FacturaResponse(
     int ProveedorId,
     int PedidoProveedorId,
     string NumeroFactura,
+    int UsuarioCreacionId,
     DateTime FechaFactura,
     decimal Subtotal,
     decimal Impuestos,

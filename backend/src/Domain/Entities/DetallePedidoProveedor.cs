@@ -24,6 +24,11 @@ public sealed class DetallePedidoProveedor
 
     public int CantidadDistribuida => _distribuciones.Sum(d => d.Cantidad);
 
+    // RN-065/D-18 (2026-09-17, incremento "Fase 6-9 en Frontend"): SUM(distribuciones) debe
+    // coincidir con CantidadPedida antes de enviar — mismo criterio que
+    // DetalleRequisicion.DistribucionCompleta (RN-011).
+    public bool DistribucionCompleta => CantidadDistribuida == CantidadPedida;
+
     // Solo para EF Core (materialización desde la base de datos). No ejecuta ninguna
     // regla de negocio; los campos se asignan por reflexión después de construir.
 #pragma warning disable CS8618

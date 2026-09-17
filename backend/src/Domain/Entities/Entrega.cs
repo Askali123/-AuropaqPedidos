@@ -15,10 +15,14 @@ namespace AuropaqPedidos.Domain.Entities;
 // sigue sin definir). Una entrega solo puede registrarse contra un pedido ENVIADO o
 // PARCIALMENTE_ENTREGADO (D-03/RN-043): no tiene sentido recibir mercancía de un pedido que
 // todavía no se envió, ni de uno cancelado o cerrado.
+//
+// UsuarioCreacionId agregado 2026-09-17 (P2-2, docs/2026-09-17-tareas.md) — mismo motivo que
+// PedidoProveedor.UsuarioCreacionId.
 public sealed class Entrega
 {
     public int Id { get; }
     public PedidoProveedor PedidoProveedor { get; }
+    public int UsuarioCreacionId { get; }
     public DateTime FechaEntrega { get; }
     public string NumeroRemision { get; }
     public EntregaEstado Estado { get; private set; }
@@ -35,7 +39,7 @@ public sealed class Entrega
     }
 #pragma warning restore CS8618
 
-    public Entrega(int id, PedidoProveedor pedidoProveedor, DateTime fechaEntrega, string numeroRemision, string? observacion = null)
+    public Entrega(int id, PedidoProveedor pedidoProveedor, int usuarioCreacionId, DateTime fechaEntrega, string numeroRemision, string? observacion = null)
     {
         if (pedidoProveedor is null)
             throw new ReglaDeNegocioException("Una entrega debe pertenecer a un pedido.");
@@ -49,6 +53,7 @@ public sealed class Entrega
 
         Id = id;
         PedidoProveedor = pedidoProveedor;
+        UsuarioCreacionId = usuarioCreacionId;
         FechaEntrega = fechaEntrega;
         NumeroRemision = numeroRemision;
         Estado = EntregaEstado.Registrada;

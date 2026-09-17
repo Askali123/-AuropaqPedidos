@@ -16,6 +16,9 @@ public sealed class PedidoProveedorConfiguration : IEntityTypeConfiguration<Pedi
         builder.Property(p => p.Id).ValueGeneratedNever();
 
         builder.Property(p => p.NumeroPedido).IsRequired();
+        // UsuarioCreacionId agregado 2026-09-17 (P2-2): mismo criterio que
+        // RequisicionConfiguration/ConsolidacionConfiguration.
+        builder.Property(p => p.UsuarioCreacionId).IsRequired();
         builder.Property(p => p.FechaPedido).IsRequired();
         builder.Property(p => p.FechaEntregaEstimada).IsRequired(false);
 

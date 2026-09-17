@@ -1,4 +1,5 @@
 using System.Net;
+using System.Net.Http.Headers;
 using System.Net.Http.Json;
 using AuropaqPedidos.Infrastructure.Persistence.Context;
 using Microsoft.EntityFrameworkCore;
@@ -11,6 +12,12 @@ namespace Api.Tests;
 // 03-arquitectura.md §42. Sin EntregasController (fuera de alcance de esta tarea): para probar
 // el cierre (que exige estado ENTREGADO) se siembra la entrega directamente en la base de
 // datos, igual que EscenarioFactura siembra el grafo previo a Factura.
+//
+// Autorización real agregada 2026-09-17 (RN-063/ADR-066): estos endpoints ya exigen JWT +
+// PEDIDO_CREAR/ENVIAR/CERRAR/CANCELAR (sin alcance por empresa, CLAUDE.md §27). Este archivo
+// prueba comportamiento de negocio, no autorización granular (eso lo cubre
+// AutorizacionPedidosEntregasFacturasFlujoTests) — un único token con los cuatro permisos,
+// autenticado en `_cliente` por defecto desde `NuevoEscenarioAsync`, alcanza para todo el flujo.
 public sealed class PedidosProveedorFlujoTests : IClassFixture<ApiWebApplicationFactory>
 {
     private readonly ApiWebApplicationFactory _factory;
@@ -26,7 +33,14 @@ public sealed class PedidosProveedorFlujoTests : IClassFixture<ApiWebApplication
     {
         using var scope = _factory.Services.CreateScope();
         var db = scope.ServiceProvider.GetRequiredService<AuropaqPedidosDbContext>();
-        return await EscenarioPedidoProveedor.CrearAsync(db, numero, cantidadNecesaria);
+        var escenario = await EscenarioPedidoProveedor.CrearAsync(db, numero, cantidadNecesaria);
+
+        var token = await AutorizacionHelper.CrearTokenConPermisosAsync(
+            _factory, db, numero, escenario.EmpresaId,
+            "PEDIDO_CREAR", "PEDIDO_ENVIAR", "PEDIDO_CERRAR", "PEDIDO_CANCELAR", "PEDIDO_VER", "ENTREGA_VER");
+        _cliente.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", token);
+
+        return escenario;
     }
 
     [Fact]
@@ -142,6 +156,8 @@ public sealed class PedidosProveedorFlujoTests : IClassFixture<ApiWebApplication
     [Fact]
     public async Task Cerrar_pedido_inexistente_devuelve_404()
     {
+        await NuevoEscenarioAsync(7); // solo para autenticar _cliente (mismo helper que el resto).
+
         var respuesta = await _cliente.PostAsync("/api/v1/pedidos-proveedor/999999/cerrar", content: null);
 
         Assert.Equal(HttpStatusCode.NotFound, respuesta.StatusCode);
@@ -161,7 +177,7 @@ public sealed class PedidosProveedorFlujoTests : IClassFixture<ApiWebApplication
             var pedido = db.PedidosProveedor
                 .Include(p => p.Detalles)
                 .Single(p => p.Id == pedidoId);
-            var entrega = new AuropaqPedidos.Domain.Entities.Entrega(90000 + pedidoId, pedido, DateTime.UtcNow, "REM-SEED");
+            var entrega = new AuropaqPedidos.Domain.Entities.Entrega(90000 + pedidoId, pedido, usuarioCreacionId: 1, DateTime.UtcNow, "REM-SEED");
             entrega.AgregarDetalle(90000 + pedidoId, pedido.Detalles[0], cantidadEntregada: 85, cantidadYaEntregadaEnOtrasEntregas: 0);
             pedido.ActualizarEstadoPorEntregas(hayAlgunaCantidadEntregada: true, quedaCantidadPendiente: false);
             db.Entregas.Add(entrega);
@@ -175,6 +191,42 @@ public sealed class PedidosProveedorFlujoTests : IClassFixture<ApiWebApplication
         Assert.Equal("Cerrado", cerrado!.Data.Estado);
     }
 
+    [Fact]
+    public async Task Listar_pedidos_filtrados_por_consolidacion_devuelve_solo_los_de_esa_consolidacion()
+    {
+        var escenario = await NuevoEscenarioAsync(8);
+        var pedidoId = await CrearYEnviarPedidoAsync(escenario, "PO-008");
+
+        var respuesta = await _cliente.GetAsync($"/api/v1/pedidos-proveedor?consolidacionId={escenario.ConsolidacionId}");
+
+        Assert.Equal(HttpStatusCode.OK, respuesta.StatusCode);
+        var lista = await respuesta.Content.ReadFromJsonAsync<Envoltorio<IReadOnlyList<PedidoProveedorDto>>>();
+        Assert.Contains(lista!.Data, p => p.Id == pedidoId);
+    }
+
+    [Fact]
+    public async Task Obtener_pedido_inexistente_devuelve_404()
+    {
+        await NuevoEscenarioAsync(9); // solo para autenticar _cliente.
+
+        var respuesta = await _cliente.GetAsync("/api/v1/pedidos-proveedor/999999");
+
+        Assert.Equal(HttpStatusCode.NotFound, respuesta.StatusCode);
+    }
+
+    [Fact]
+    public async Task Listar_entregas_de_un_pedido_sin_entregas_devuelve_lista_vacia()
+    {
+        var escenario = await NuevoEscenarioAsync(10);
+        var pedidoId = await CrearYEnviarPedidoAsync(escenario, "PO-010");
+
+        var respuesta = await _cliente.GetAsync($"/api/v1/pedidos-proveedor/{pedidoId}/entregas");
+
+        Assert.Equal(HttpStatusCode.OK, respuesta.StatusCode);
+        var lista = await respuesta.Content.ReadFromJsonAsync<Envoltorio<IReadOnlyList<object>>>();
+        Assert.Empty(lista!.Data);
+    }
+
     private async Task<int> CrearYEnviarPedidoAsync(EscenarioPedidoProveedor escenario, string numeroPedido, int cantidadPedida = 100)
     {
         var respuestaCrear = await _cliente.PostAsJsonAsync("/api/v1/pedidos-proveedor", new
@@ -185,11 +237,20 @@ public sealed class PedidosProveedorFlujoTests : IClassFixture<ApiWebApplication
         });
         var pedido = await respuestaCrear.Content.ReadFromJsonAsync<Envoltorio<PedidoProveedorDto>>();
 
-        await _cliente.PostAsJsonAsync($"/api/v1/pedidos-proveedor/{pedido!.Data.Id}/detalles", new
+        var respuestaDetalle = await _cliente.PostAsJsonAsync($"/api/v1/pedidos-proveedor/{pedido!.Data.Id}/detalles", new
         {
             detalleConsolidacionId = escenario.DetalleConsolidacionId,
             cantidadPedida
         });
+        var conDetalle = await respuestaDetalle.Content.ReadFromJsonAsync<Envoltorio<PedidoProveedorDto>>();
+
+        // RN-065/D-18 (2026-09-17): distribución completa exigida antes de enviar.
+        await _cliente.PostAsJsonAsync(
+            $"/api/v1/pedidos-proveedor/{pedido.Data.Id}/detalles/{conDetalle!.Data.Detalles[0].Id}/distribuciones", new
+            {
+                sedeId = escenario.SedeId,
+                cantidad = cantidadPedida
+            });
 
         await _cliente.PostAsync($"/api/v1/pedidos-proveedor/{pedido.Data.Id}/enviar", content: null);
 

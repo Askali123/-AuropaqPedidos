@@ -50,7 +50,7 @@ public class PedidoProveedorTests
     private static Proveedor CrearProveedor() => new(1, "Proveedor Uno");
 
     private static PedidoProveedor CrearPedido(Consolidacion consolidacion, Proveedor? proveedor = null) =>
-        new(1, consolidacion, proveedor ?? CrearProveedor(), "PO-001", Fecha);
+        new(1, consolidacion, proveedor ?? CrearProveedor(), "PO-001", usuarioCreacionId: 10, Fecha);
 
     [Fact]
     public void Crea_un_pedido_valido_con_proveedor_y_numero()
@@ -72,7 +72,7 @@ public class PedidoProveedorTests
         var (consolidacion, _, _, _) = CrearConsolidacionConUnDetalle(CrearProducto(1, "Papel higiénico"), 85);
 
         Assert.Throws<ReglaDeNegocioException>(() =>
-            new PedidoProveedor(1, consolidacion, proveedor: null!, "PO-001", Fecha));
+            new PedidoProveedor(1, consolidacion, proveedor: null!, "PO-001", usuarioCreacionId: 10, Fecha));
     }
 
     [Fact]
@@ -81,7 +81,7 @@ public class PedidoProveedorTests
         var (consolidacion, _, _, _) = CrearConsolidacionConUnDetalle(CrearProducto(1, "Papel higiénico"), 85);
 
         Assert.Throws<ReglaDeNegocioException>(() =>
-            new PedidoProveedor(1, consolidacion, CrearProveedor(), numeroPedido: "", Fecha));
+            new PedidoProveedor(1, consolidacion, CrearProveedor(), numeroPedido: "", usuarioCreacionId: 10, Fecha));
     }
 
     [Fact]
@@ -220,6 +220,33 @@ public class PedidoProveedorTests
         Assert.Throws<ReglaDeNegocioException>(() => pedido.Enviar());
     }
 
+    // RN-065/D-18 (2026-09-17, incremento "Fase 6-9 en Frontend"): la distribución de cada
+    // detalle debe estar completa antes de enviar — mismo criterio que Requisicion.Enviar()
+    // (RN-011).
+    [Fact]
+    public void No_permite_enviar_un_pedido_con_distribucion_incompleta()
+    {
+        var (consolidacion, detalleConsolidado, _, _) = CrearConsolidacionConUnDetalle(CrearProducto(1, "Papel higiénico"), 85);
+        var pedido = CrearPedido(consolidacion);
+        var detalle = pedido.AgregarDetalle(1, detalleConsolidado, cantidadPedida: 100);
+        pedido.AgregarDistribucion(1, detalle, new Sede(1, new Empresa(999, "Empresa"), "Sede"), 60); // solo 60 de 100
+
+        Assert.Throws<ReglaDeNegocioException>(() => pedido.Enviar());
+    }
+
+    [Fact]
+    public void Permite_enviar_un_pedido_con_distribucion_completa()
+    {
+        var (consolidacion, detalleConsolidado, _, _) = CrearConsolidacionConUnDetalle(CrearProducto(1, "Papel higiénico"), 85);
+        var pedido = CrearPedido(consolidacion);
+        var detalle = pedido.AgregarDetalle(1, detalleConsolidado, cantidadPedida: 100);
+        pedido.AgregarDistribucion(1, detalle, new Sede(1, new Empresa(999, "Empresa"), "Sede"), 100);
+
+        pedido.Enviar();
+
+        Assert.Equal(PedidoProveedorEstado.Enviado, pedido.Estado);
+    }
+
     [Fact]
     public void Cancelar_es_valido_desde_borrador()
     {
@@ -268,7 +295,9 @@ public class PedidoProveedorTests
     {
         var (consolidacion, detalleConsolidado, _, _) = CrearConsolidacionConUnDetalle(CrearProducto(1, "Papel higiénico"), 85);
         var pedido = CrearPedido(consolidacion);
-        pedido.AgregarDetalle(1, detalleConsolidado, cantidadPedida: 100);
+        var detalle = pedido.AgregarDetalle(1, detalleConsolidado, cantidadPedida: 100);
+        // RN-065/D-18 (2026-09-17): distribución completa exigida antes de enviar.
+        pedido.AgregarDistribucion(1, detalle, new Sede(1, new Empresa(999, "Empresa"), "Sede"), 100);
         pedido.Enviar();
         pedido.ActualizarEstadoPorEntregas(hayAlgunaCantidadEntregada: true, quedaCantidadPendiente: false);
 
@@ -282,7 +311,9 @@ public class PedidoProveedorTests
     {
         var (consolidacion, detalleConsolidado, _, _) = CrearConsolidacionConUnDetalle(CrearProducto(1, "Papel higiénico"), 85);
         var pedido = CrearPedido(consolidacion);
-        pedido.AgregarDetalle(1, detalleConsolidado, cantidadPedida: 100);
+        var detalle = pedido.AgregarDetalle(1, detalleConsolidado, cantidadPedida: 100);
+        // RN-065/D-18 (2026-09-17): distribución completa exigida antes de enviar.
+        pedido.AgregarDistribucion(1, detalle, new Sede(1, new Empresa(999, "Empresa"), "Sede"), 100);
         pedido.Enviar();
         pedido.ActualizarEstadoPorEntregas(hayAlgunaCantidadEntregada: true, quedaCantidadPendiente: false);
         pedido.Cerrar();

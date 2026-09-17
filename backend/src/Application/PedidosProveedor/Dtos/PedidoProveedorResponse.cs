@@ -5,6 +5,7 @@ public sealed record PedidoProveedorResponse(
     int ConsolidacionId,
     int ProveedorId,
     string NumeroPedido,
+    int UsuarioCreacionId,
     DateTime FechaPedido,
     DateTime? FechaEntregaEstimada,
     string Estado,

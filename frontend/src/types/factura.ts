@@ -9,6 +9,10 @@ export interface DetalleFactura {
   subtotal: number;
 }
 
+// docs/05-api.md §34. "estado" es el nombre real del enum C# (PascalCase) — mismo criterio ya
+// usado en types/requisicion.ts.
+export type FacturaEstado = "Registrada" | "Anulada";
+
 // Corresponde exactamente a AuropaqPedidos.Application.Facturas.Dtos.FacturaResponse (backend).
 // subtotal/total son calculados por el backend (Factura.Subtotal/Total, Domain) — el frontend
 // nunca debe recalcularlos, solo mostrarlos.
@@ -17,28 +21,26 @@ export interface Factura {
   proveedorId: number;
   pedidoProveedorId: number;
   numeroFactura: string;
+  usuarioCreacionId: number;
   fechaFactura: string; // DateTime serializado como ISO 8601 por System.Text.Json.
   subtotal: number;
   impuestos: number;
   total: number;
-  estado: string;
+  estado: FacturaEstado;
   observacion: string | null;
   detalles: DetalleFactura[];
 }
 
-// Corresponde a AuropaqPedidos.Application.Facturas.Dtos.RegistrarFacturaRequest (backend).
-//
-// DIFERENCIA DOCUMENTADA: este request NO incluye FechaFactura, aunque conceptualmente sea un
-// dato de la factura. FacturasController.Registrar (Api) asigna FechaFactura con
-// DateTime.UtcNow en el servidor y no la recibe del cliente — no existe forma de enviarla desde
-// el frontend en este incremento. La pantalla de "Crear factura" lo indica explícitamente.
+// Corresponde exactamente a AuropaqPedidos.Application.Facturas.Dtos.RegistrarFacturaRequest
+// (backend) — sin "estado" (D-05/RN-047: una factura siempre se crea REGISTRADA, no se recibe
+// del cliente) ni "fechaFactura" (FacturasController.Registrar la asigna con DateTime.UtcNow en
+// el servidor).
 export interface RegistrarFacturaRequest {
   proveedorId: number;
   pedidoProveedorId: number;
   numeroFactura: string;
   impuestos: number;
-  estado: string;
-  observacion?: string;
+  observacion?: string | null;
 }
 
 // Corresponde exactamente a AuropaqPedidos.Application.Facturas.Dtos.AgregarDetalleFacturaRequest (backend).

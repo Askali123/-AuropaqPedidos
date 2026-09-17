@@ -12,6 +12,7 @@ internal static class PedidoProveedorMapper
         ConsolidacionId: pedido.Consolidacion.Id,
         ProveedorId: pedido.Proveedor.Id,
         NumeroPedido: pedido.NumeroPedido,
+        UsuarioCreacionId: pedido.UsuarioCreacionId,
         FechaPedido: pedido.FechaPedido,
         FechaEntregaEstimada: pedido.FechaEntregaEstimada,
         Estado: pedido.Estado.ToString(),

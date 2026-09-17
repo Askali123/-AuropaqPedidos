@@ -75,16 +75,17 @@ public class CrearPedidoProveedorUseCaseTests
 
         var respuesta = escenario.CrearUseCase().Ejecutar(
             Fecha,
-            new CrearPedidoProveedorRequest(consolidacion.Id, escenario.Proveedor.Id, "PO-001"));
+            new CrearPedidoProveedorRequest(consolidacion.Id, escenario.Proveedor.Id, "PO-001"), usuarioId: 10);
 
         Assert.Equal(consolidacion.Id, respuesta.ConsolidacionId);
         Assert.Equal(escenario.Proveedor.Id, respuesta.ProveedorId);
         Assert.Equal("PO-001", respuesta.NumeroPedido);
+        Assert.Equal(10, respuesta.UsuarioCreacionId);
         Assert.Empty(respuesta.Detalles);
     }
 
     // TASK-056: "creación de pedido" es uno de los 6 ejemplos documentados en
-    // 04-base-datos.md §33. usuarioId es null aquí porque este endpoint todavía no exige JWT.
+    // 04-base-datos.md §33. usuarioId agregado 2026-09-17 (P2-2): el endpoint ya exige JWT.
     [Fact]
     public void Crear_un_pedido_registra_un_evento_de_auditoria()
     {
@@ -92,13 +93,13 @@ public class CrearPedidoProveedorUseCaseTests
         var (consolidacion, _) = escenario.CrearConsolidacionConUnDetalle(escenario.CrearProducto("Papel higiénico"), 85);
 
         var respuesta = escenario.CrearUseCase().Ejecutar(
-            Fecha, new CrearPedidoProveedorRequest(consolidacion.Id, escenario.Proveedor.Id, "PO-001"));
+            Fecha, new CrearPedidoProveedorRequest(consolidacion.Id, escenario.Proveedor.Id, "PO-001"), usuarioId: 10);
 
         var registro = Assert.Single(escenario.Auditoria.Registros);
         Assert.Equal("PedidoProveedor", registro.Entidad);
         Assert.Equal(respuesta.Id, registro.EntidadId);
         Assert.Equal("CREAR", registro.Accion);
-        Assert.Null(registro.UsuarioId);
+        Assert.Equal(10, registro.UsuarioId);
     }
 
     [Fact]
@@ -107,7 +108,7 @@ public class CrearPedidoProveedorUseCaseTests
         var escenario = new Escenario();
 
         Assert.Throws<RecursoNoEncontradoException>(() =>
-            escenario.CrearUseCase().Ejecutar(Fecha, new CrearPedidoProveedorRequest(999, escenario.Proveedor.Id, "PO-001")));
+            escenario.CrearUseCase().Ejecutar(Fecha, new CrearPedidoProveedorRequest(999, escenario.Proveedor.Id, "PO-001"), usuarioId: 10));
     }
 
     [Fact]
@@ -117,7 +118,7 @@ public class CrearPedidoProveedorUseCaseTests
         var (consolidacion, _) = escenario.CrearConsolidacionConUnDetalle(escenario.CrearProducto("Papel higiénico"), 85);
 
         Assert.Throws<RecursoNoEncontradoException>(() =>
-            escenario.CrearUseCase().Ejecutar(Fecha, new CrearPedidoProveedorRequest(consolidacion.Id, 999, "PO-001")));
+            escenario.CrearUseCase().Ejecutar(Fecha, new CrearPedidoProveedorRequest(consolidacion.Id, 999, "PO-001"), usuarioId: 10));
     }
 
     [Fact]
@@ -128,7 +129,7 @@ public class CrearPedidoProveedorUseCaseTests
         escenario.Proveedor.Desactivar();
 
         Assert.Throws<ReglaDeNegocioException>(() =>
-            escenario.CrearUseCase().Ejecutar(Fecha, new CrearPedidoProveedorRequest(consolidacion.Id, escenario.Proveedor.Id, "PO-001")));
+            escenario.CrearUseCase().Ejecutar(Fecha, new CrearPedidoProveedorRequest(consolidacion.Id, escenario.Proveedor.Id, "PO-001"), usuarioId: 10));
     }
 
     [Fact]
@@ -137,7 +138,7 @@ public class CrearPedidoProveedorUseCaseTests
         var escenario = new Escenario();
         var (consolidacion, detalleConsolidado) = escenario.CrearConsolidacionConUnDetalle(escenario.CrearProducto("Papel higiénico"), 85);
         var pedido = escenario.CrearUseCase().Ejecutar(
-            Fecha, new CrearPedidoProveedorRequest(consolidacion.Id, escenario.Proveedor.Id, "PO-001"));
+            Fecha, new CrearPedidoProveedorRequest(consolidacion.Id, escenario.Proveedor.Id, "PO-001"), usuarioId: 10);
 
         var respuesta = escenario.AgregarDetalleUseCase().Ejecutar(
             pedido.Id, new AgregarDetallePedidoProveedorRequest(detalleConsolidado.Id, CantidadPedida: 100, PrecioUnitario: 12.5m));
@@ -155,7 +156,7 @@ public class CrearPedidoProveedorUseCaseTests
         var escenario = new Escenario();
         var (consolidacion, _) = escenario.CrearConsolidacionConUnDetalle(escenario.CrearProducto("Papel higiénico"), 85);
         var pedido = escenario.CrearUseCase().Ejecutar(
-            Fecha, new CrearPedidoProveedorRequest(consolidacion.Id, escenario.Proveedor.Id, "PO-001"));
+            Fecha, new CrearPedidoProveedorRequest(consolidacion.Id, escenario.Proveedor.Id, "PO-001"), usuarioId: 10);
 
         Assert.Throws<RecursoNoEncontradoException>(() =>
             escenario.AgregarDetalleUseCase().Ejecutar(pedido.Id, new AgregarDetallePedidoProveedorRequest(999, 100)));
@@ -167,7 +168,7 @@ public class CrearPedidoProveedorUseCaseTests
         var escenario = new Escenario();
         var (consolidacion, detalleConsolidado) = escenario.CrearConsolidacionConUnDetalle(escenario.CrearProducto("Papel higiénico"), 85);
         var pedido = escenario.CrearUseCase().Ejecutar(
-            Fecha, new CrearPedidoProveedorRequest(consolidacion.Id, escenario.Proveedor.Id, "PO-001"));
+            Fecha, new CrearPedidoProveedorRequest(consolidacion.Id, escenario.Proveedor.Id, "PO-001"), usuarioId: 10);
         var conDetalle = escenario.AgregarDetalleUseCase().Ejecutar(
             pedido.Id, new AgregarDetallePedidoProveedorRequest(detalleConsolidado.Id, 100));
         var detalleId = conDetalle.Detalles[0].Id;
@@ -191,7 +192,7 @@ public class CrearPedidoProveedorUseCaseTests
         var escenario = new Escenario();
         var (consolidacion, detalleConsolidado) = escenario.CrearConsolidacionConUnDetalle(escenario.CrearProducto("Papel higiénico"), 85);
         var pedido = escenario.CrearUseCase().Ejecutar(
-            Fecha, new CrearPedidoProveedorRequest(consolidacion.Id, escenario.Proveedor.Id, "PO-001"));
+            Fecha, new CrearPedidoProveedorRequest(consolidacion.Id, escenario.Proveedor.Id, "PO-001"), usuarioId: 10);
         var conDetalle = escenario.AgregarDetalleUseCase().Ejecutar(
             pedido.Id, new AgregarDetallePedidoProveedorRequest(detalleConsolidado.Id, 100));
         var detalleId = conDetalle.Detalles[0].Id;
@@ -211,7 +212,7 @@ public class CrearPedidoProveedorUseCaseTests
         var escenario = new Escenario();
         var (consolidacion, detalleConsolidado) = escenario.CrearConsolidacionConUnDetalle(escenario.CrearProducto("Papel higiénico"), 85);
         var pedido = escenario.CrearUseCase().Ejecutar(
-            Fecha, new CrearPedidoProveedorRequest(consolidacion.Id, escenario.Proveedor.Id, "PO-001"));
+            Fecha, new CrearPedidoProveedorRequest(consolidacion.Id, escenario.Proveedor.Id, "PO-001"), usuarioId: 10);
 
         escenario.AgregarDetalleUseCase().Ejecutar(pedido.Id, new AgregarDetallePedidoProveedorRequest(detalleConsolidado.Id, 100));
 
@@ -229,7 +230,7 @@ public class CrearPedidoProveedorUseCaseTests
         var (consolidacion, _) = escenario.CrearConsolidacionConUnDetalle(escenario.CrearProducto("Papel higiénico"), 85);
 
         var respuesta = escenario.CrearUseCase().Ejecutar(
-            Fecha, new CrearPedidoProveedorRequest(consolidacion.Id, escenario.Proveedor.Id, "PO-001"));
+            Fecha, new CrearPedidoProveedorRequest(consolidacion.Id, escenario.Proveedor.Id, "PO-001"), usuarioId: 10);
 
         Assert.Equal("Borrador", respuesta.Estado);
     }
@@ -240,10 +241,10 @@ public class CrearPedidoProveedorUseCaseTests
         var escenario = new Escenario();
         var (consolidacionA, _) = escenario.CrearConsolidacionConUnDetalle(escenario.CrearProducto("Papel higiénico"), 85);
         var (consolidacionB, _) = escenario.CrearConsolidacionConUnDetalle(escenario.CrearProducto("Jabón"), 20);
-        escenario.CrearUseCase().Ejecutar(Fecha, new CrearPedidoProveedorRequest(consolidacionA.Id, escenario.Proveedor.Id, "PO-001"));
+        escenario.CrearUseCase().Ejecutar(Fecha, new CrearPedidoProveedorRequest(consolidacionA.Id, escenario.Proveedor.Id, "PO-001"), usuarioId: 10);
 
         Assert.Throws<ReglaDeNegocioException>(() =>
-            escenario.CrearUseCase().Ejecutar(Fecha, new CrearPedidoProveedorRequest(consolidacionB.Id, escenario.Proveedor.Id, "PO-001")));
+            escenario.CrearUseCase().Ejecutar(Fecha, new CrearPedidoProveedorRequest(consolidacionB.Id, escenario.Proveedor.Id, "PO-001"), usuarioId: 10));
     }
 
     [Fact]
@@ -254,9 +255,9 @@ public class CrearPedidoProveedorUseCaseTests
         escenario.Proveedores.Agregar(otroProveedor);
         var (consolidacionA, _) = escenario.CrearConsolidacionConUnDetalle(escenario.CrearProducto("Papel higiénico"), 85);
         var (consolidacionB, _) = escenario.CrearConsolidacionConUnDetalle(escenario.CrearProducto("Jabón"), 20);
-        escenario.CrearUseCase().Ejecutar(Fecha, new CrearPedidoProveedorRequest(consolidacionA.Id, escenario.Proveedor.Id, "PO-001"));
+        escenario.CrearUseCase().Ejecutar(Fecha, new CrearPedidoProveedorRequest(consolidacionA.Id, escenario.Proveedor.Id, "PO-001"), usuarioId: 10);
 
-        var respuesta = escenario.CrearUseCase().Ejecutar(Fecha, new CrearPedidoProveedorRequest(consolidacionB.Id, otroProveedor.Id, "PO-001"));
+        var respuesta = escenario.CrearUseCase().Ejecutar(Fecha, new CrearPedidoProveedorRequest(consolidacionB.Id, otroProveedor.Id, "PO-001"), usuarioId: 10);
 
         Assert.Equal("PO-001", respuesta.NumeroPedido);
     }

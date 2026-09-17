@@ -377,6 +377,9 @@ namespace AuropaqPedidos.Infrastructure.Persistence.Migrations
                     b.Property<int>("PedidoProveedorId")
                         .HasColumnType("int");
 
+                    b.Property<int>("UsuarioCreacionId")
+                        .HasColumnType("int");
+
                     b.HasKey("Id");
 
                     b.HasIndex("PedidoProveedorId", "NumeroRemision")
@@ -412,6 +415,9 @@ namespace AuropaqPedidos.Infrastructure.Persistence.Migrations
                         .HasColumnType("int");
 
                     b.Property<int>("ProveedorId")
+                        .HasColumnType("int");
+
+                    b.Property<int>("UsuarioCreacionId")
                         .HasColumnType("int");
 
                     b.HasKey("Id");
@@ -485,6 +491,9 @@ namespace AuropaqPedidos.Infrastructure.Persistence.Migrations
                         .HasColumnType("nvarchar(max)");
 
                     b.Property<int>("ProveedorId")
+                        .HasColumnType("int");
+
+                    b.Property<int>("UsuarioCreacionId")
                         .HasColumnType("int");
 
                     b.HasKey("Id");

@@ -1,6 +1,7 @@
 using AuropaqPedidos.Api.Common;
 using AuropaqPedidos.Application.Organizacion;
 using AuropaqPedidos.Application.Organizacion.Dtos;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 
 namespace AuropaqPedidos.Api.Controllers;
@@ -20,6 +21,10 @@ public sealed class AuthController : ControllerBase
         _login = login;
     }
 
+    // [AllowAnonymous] agregado 2026-09-17 (P1-5, docs/2026-09-17-tareas.md): necesario desde que
+    // Program.cs define un FallbackPolicy que exige autenticación por defecto en cualquier
+    // endpoint sin [Authorize]/[AllowAnonymous] explícito — sin esto, nadie podría autenticarse.
+    [AllowAnonymous]
     [HttpPost("login")]
     public ActionResult<ApiResponse<LoginResponse>> Login([FromBody] LoginRequest request)
     {

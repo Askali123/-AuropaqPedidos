@@ -126,6 +126,21 @@ public class RequisicionFlujoTests
         Assert.False(requisicion.EsEditable);
     }
 
+    // RN-062/D-15 (cierre documental 2026-09-17): APROBADA es inmutable, sin excepción. La regla
+    // general ya existía (EsEditable = Borrador o Devuelta) desde TASK-023..026; esta prueba fija
+    // explícitamente el caso APROBADA (antes solo cubierto genéricamente vía el estado ENVIADA en
+    // RequisicionTests.No_permite_agregar_detalle_cuando_no_esta_editable).
+    [Fact]
+    public void No_permite_agregar_detalle_a_una_requisicion_aprobada()
+    {
+        var requisicion = CrearRequisicionListaParaEnviar();
+        requisicion.Enviar(1, DentroDeVentana);
+        requisicion.IniciarRevision(1, DentroDeVentana);
+        requisicion.Aprobar(2, DentroDeVentana, "Cumple los requisitos");
+
+        Assert.Throws<ReglaDeNegocioException>(() => requisicion.AgregarDetalle(99, CrearProducto(), 10));
+    }
+
     [Fact]
     public void Devolver_requiere_motivo()
     {

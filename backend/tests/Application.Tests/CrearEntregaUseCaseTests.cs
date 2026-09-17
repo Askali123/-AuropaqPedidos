@@ -70,10 +70,16 @@ public class CrearEntregaUseCaseTests
 
             var pedidoUseCase = new CrearPedidoProveedorUseCase(
                 Pedidos, Consolidaciones, Proveedores, Auditoria, Ids, NullLogger<CrearPedidoProveedorUseCase>.Instance);
-            var pedido = pedidoUseCase.Ejecutar(Fecha, new CrearPedidoProveedorRequest(consolidacion.Id, Proveedor.Id, "PO-001"));
+            var pedido = pedidoUseCase.Ejecutar(Fecha, new CrearPedidoProveedorRequest(consolidacion.Id, Proveedor.Id, "PO-001"), usuarioId: 10);
 
             var detallePedidoUseCase = new AgregarDetallePedidoProveedorUseCase(Pedidos, Ids);
             var conDetalle = detallePedidoUseCase.Ejecutar(pedido.Id, new AgregarDetallePedidoProveedorRequest(consolidacion.Detalles[0].Id, cantidadPedida));
+
+            // RN-065/D-18 (2026-09-17): distribución completa exigida antes de enviar. Reutiliza
+            // la misma sede de la requisición de origen.
+            Sedes.Agregar(sede);
+            var distribucionUseCase = new AgregarDistribucionPedidoUseCase(Pedidos, Sedes, Ids);
+            distribucionUseCase.Ejecutar(pedido.Id, conDetalle.Detalles[0].Id, sede.Id, cantidadPedida);
 
             // D-04/RN-046: una entrega solo puede registrarse contra un pedido ENVIADO o
             // PARCIALMENTE_ENTREGADO.
@@ -91,7 +97,7 @@ public class CrearEntregaUseCaseTests
         var (pedido, _) = escenario.CrearPedidoConUnDetalle(escenario.CrearProducto("Papel higiénico"), 85, 100);
 
         var respuesta = escenario.CrearEntregaUseCase().Ejecutar(
-            Fecha, new CrearEntregaRequest(pedido.Id, "REM-001"));
+            Fecha, new CrearEntregaRequest(pedido.Id, "REM-001"), usuarioId: 10);
 
         Assert.Equal(pedido.Id, respuesta.PedidoProveedorId);
         Assert.Equal("REM-001", respuesta.NumeroRemision);
@@ -99,21 +105,22 @@ public class CrearEntregaUseCaseTests
     }
 
     // TASK-056: "registro de entrega" es uno de los 6 ejemplos documentados en
-    // 04-base-datos.md §33. usuarioId es null aquí porque este endpoint todavía no exige JWT.
+    // 04-base-datos.md §33. usuarioId agregado 2026-09-17 (P2-2): el endpoint ya exige JWT.
     [Fact]
     public void Crear_una_entrega_registra_un_evento_de_auditoria()
     {
         var escenario = new Escenario();
         var (pedido, _) = escenario.CrearPedidoConUnDetalle(escenario.CrearProducto("Papel higiénico"), 85, 100);
 
-        var respuesta = escenario.CrearEntregaUseCase().Ejecutar(Fecha, new CrearEntregaRequest(pedido.Id, "REM-001"));
+        var respuesta = escenario.CrearEntregaUseCase().Ejecutar(Fecha, new CrearEntregaRequest(pedido.Id, "REM-001"), usuarioId: 10);
 
         // CrearPedidoConUnDetalle ya registró su propio evento de auditoria ("PedidoProveedor");
         // esta prueba solo verifica el que agrega CrearEntregaUseCase.
         var registro = Assert.Single(escenario.Auditoria.Registros, r => r.Entidad == "Entrega");
         Assert.Equal(respuesta.Id, registro.EntidadId);
         Assert.Equal("CREAR", registro.Accion);
-        Assert.Null(registro.UsuarioId);
+        Assert.Equal(10, registro.UsuarioId);
+        Assert.Equal(10, respuesta.UsuarioCreacionId);
     }
 
     [Fact]
@@ -122,7 +129,7 @@ public class CrearEntregaUseCaseTests
         var escenario = new Escenario();
 
         Assert.Throws<RecursoNoEncontradoException>(() =>
-            escenario.CrearEntregaUseCase().Ejecutar(Fecha, new CrearEntregaRequest(999, "REM-001")));
+            escenario.CrearEntregaUseCase().Ejecutar(Fecha, new CrearEntregaRequest(999, "REM-001"), usuarioId: 10));
     }
 
     [Fact]
@@ -130,7 +137,7 @@ public class CrearEntregaUseCaseTests
     {
         var escenario = new Escenario();
         var (pedido, detalleId) = escenario.CrearPedidoConUnDetalle(escenario.CrearProducto("Papel higiénico"), 85, 100);
-        var entrega = escenario.CrearEntregaUseCase().Ejecutar(Fecha, new CrearEntregaRequest(pedido.Id, "REM-001"));
+        var entrega = escenario.CrearEntregaUseCase().Ejecutar(Fecha, new CrearEntregaRequest(pedido.Id, "REM-001"), usuarioId: 10);
 
         var respuesta = escenario.AgregarDetalleUseCase().Ejecutar(entrega.Id, new AgregarDetalleEntregaRequest(detalleId, 60));
 
@@ -144,10 +151,10 @@ public class CrearEntregaUseCaseTests
         var escenario = new Escenario();
         var (pedido, detalleId) = escenario.CrearPedidoConUnDetalle(escenario.CrearProducto("Papel higiénico"), 85, 100);
 
-        var entrega1 = escenario.CrearEntregaUseCase().Ejecutar(Fecha, new CrearEntregaRequest(pedido.Id, "REM-001"));
+        var entrega1 = escenario.CrearEntregaUseCase().Ejecutar(Fecha, new CrearEntregaRequest(pedido.Id, "REM-001"), usuarioId: 10);
         escenario.AgregarDetalleUseCase().Ejecutar(entrega1.Id, new AgregarDetalleEntregaRequest(detalleId, 60));
 
-        var entrega2 = escenario.CrearEntregaUseCase().Ejecutar(Fecha, new CrearEntregaRequest(pedido.Id, "REM-002"));
+        var entrega2 = escenario.CrearEntregaUseCase().Ejecutar(Fecha, new CrearEntregaRequest(pedido.Id, "REM-002"), usuarioId: 10);
 
         // 60 (entrega1) + 50 (entrega2) = 110 > 100 pedidos.
         Assert.Throws<ReglaDeNegocioException>(() =>
@@ -160,10 +167,10 @@ public class CrearEntregaUseCaseTests
         var escenario = new Escenario();
         var (pedido, detalleId) = escenario.CrearPedidoConUnDetalle(escenario.CrearProducto("Papel higiénico"), 85, 100);
 
-        var entrega1 = escenario.CrearEntregaUseCase().Ejecutar(Fecha, new CrearEntregaRequest(pedido.Id, "REM-001"));
+        var entrega1 = escenario.CrearEntregaUseCase().Ejecutar(Fecha, new CrearEntregaRequest(pedido.Id, "REM-001"), usuarioId: 10);
         escenario.AgregarDetalleUseCase().Ejecutar(entrega1.Id, new AgregarDetalleEntregaRequest(detalleId, 60));
 
-        var entrega2 = escenario.CrearEntregaUseCase().Ejecutar(Fecha, new CrearEntregaRequest(pedido.Id, "REM-002"));
+        var entrega2 = escenario.CrearEntregaUseCase().Ejecutar(Fecha, new CrearEntregaRequest(pedido.Id, "REM-002"), usuarioId: 10);
         var respuesta = escenario.AgregarDetalleUseCase().Ejecutar(entrega2.Id, new AgregarDetalleEntregaRequest(detalleId, 40));
 
         Assert.Equal(40, respuesta.Detalles[0].CantidadEntregada);
@@ -174,7 +181,7 @@ public class CrearEntregaUseCaseTests
     {
         var escenario = new Escenario();
         var (pedido, detalleId) = escenario.CrearPedidoConUnDetalle(escenario.CrearProducto("Papel higiénico"), 85, 100);
-        var entrega = escenario.CrearEntregaUseCase().Ejecutar(Fecha, new CrearEntregaRequest(pedido.Id, "REM-001"));
+        var entrega = escenario.CrearEntregaUseCase().Ejecutar(Fecha, new CrearEntregaRequest(pedido.Id, "REM-001"), usuarioId: 10);
         var conDetalle = escenario.AgregarDetalleUseCase().Ejecutar(entrega.Id, new AgregarDetalleEntregaRequest(detalleId, 60));
         var detalleEntregaId = conDetalle.Detalles[0].Id;
 
@@ -194,7 +201,7 @@ public class CrearEntregaUseCaseTests
     {
         var escenario = new Escenario();
         var (pedido, detalleId) = escenario.CrearPedidoConUnDetalle(escenario.CrearProducto("Papel higiénico"), 85, 100);
-        var entrega = escenario.CrearEntregaUseCase().Ejecutar(Fecha, new CrearEntregaRequest(pedido.Id, "REM-001"));
+        var entrega = escenario.CrearEntregaUseCase().Ejecutar(Fecha, new CrearEntregaRequest(pedido.Id, "REM-001"), usuarioId: 10);
         var conDetalle = escenario.AgregarDetalleUseCase().Ejecutar(entrega.Id, new AgregarDetalleEntregaRequest(detalleId, 60));
         var detalleEntregaId = conDetalle.Detalles[0].Id;
 
@@ -213,7 +220,7 @@ public class CrearEntregaUseCaseTests
         var escenario = new Escenario();
         var (pedido, detalleId) = escenario.CrearPedidoConUnDetalle(escenario.CrearProducto("Papel higiénico"), 85, 100);
 
-        var entrega1 = escenario.CrearEntregaUseCase().Ejecutar(Fecha, new CrearEntregaRequest(pedido.Id, "REM-001"));
+        var entrega1 = escenario.CrearEntregaUseCase().Ejecutar(Fecha, new CrearEntregaRequest(pedido.Id, "REM-001"), usuarioId: 10);
         escenario.AgregarDetalleUseCase().Ejecutar(entrega1.Id, new AgregarDetalleEntregaRequest(detalleId, 60));
 
         var pendiente = escenario.CalcularPendienteUseCase().Ejecutar(pedido.Id, detalleId);
@@ -228,7 +235,7 @@ public class CrearEntregaUseCaseTests
     {
         var escenario = new Escenario();
         var (pedido, detalleId) = escenario.CrearPedidoConUnDetalle(escenario.CrearProducto("Papel higiénico"), 85, 100);
-        var entrega = escenario.CrearEntregaUseCase().Ejecutar(Fecha, new CrearEntregaRequest(pedido.Id, "REM-001"));
+        var entrega = escenario.CrearEntregaUseCase().Ejecutar(Fecha, new CrearEntregaRequest(pedido.Id, "REM-001"), usuarioId: 10);
 
         escenario.AgregarDetalleUseCase().Ejecutar(entrega.Id, new AgregarDetalleEntregaRequest(detalleId, 60));
 
@@ -245,7 +252,7 @@ public class CrearEntregaUseCaseTests
     {
         var escenario = new Escenario();
         var (pedido, detalleId) = escenario.CrearPedidoConUnDetalle(escenario.CrearProducto("Papel higiénico"), 85, 100);
-        var entrega = escenario.CrearEntregaUseCase().Ejecutar(Fecha, new CrearEntregaRequest(pedido.Id, "REM-001"));
+        var entrega = escenario.CrearEntregaUseCase().Ejecutar(Fecha, new CrearEntregaRequest(pedido.Id, "REM-001"), usuarioId: 10);
 
         escenario.AgregarDetalleUseCase().Ejecutar(entrega.Id, new AgregarDetalleEntregaRequest(detalleId, 60));
 
@@ -258,10 +265,10 @@ public class CrearEntregaUseCaseTests
     {
         var escenario = new Escenario();
         var (pedido, detalleId) = escenario.CrearPedidoConUnDetalle(escenario.CrearProducto("Papel higiénico"), 85, 100);
-        var entrega1 = escenario.CrearEntregaUseCase().Ejecutar(Fecha, new CrearEntregaRequest(pedido.Id, "REM-001"));
+        var entrega1 = escenario.CrearEntregaUseCase().Ejecutar(Fecha, new CrearEntregaRequest(pedido.Id, "REM-001"), usuarioId: 10);
         escenario.AgregarDetalleUseCase().Ejecutar(entrega1.Id, new AgregarDetalleEntregaRequest(detalleId, 60));
 
-        var entrega2 = escenario.CrearEntregaUseCase().Ejecutar(Fecha, new CrearEntregaRequest(pedido.Id, "REM-002"));
+        var entrega2 = escenario.CrearEntregaUseCase().Ejecutar(Fecha, new CrearEntregaRequest(pedido.Id, "REM-002"), usuarioId: 10);
         escenario.AgregarDetalleUseCase().Ejecutar(entrega2.Id, new AgregarDetalleEntregaRequest(detalleId, 40));
 
         var pedidoRecuperado = escenario.Pedidos.ObtenerPorId(pedido.Id)!;
@@ -291,10 +298,10 @@ public class CrearEntregaUseCaseTests
         var pedidoUseCase = new CrearPedidoProveedorUseCase(
             escenario.Pedidos, escenario.Consolidaciones, escenario.Proveedores, escenario.Auditoria, escenario.Ids,
             NullLogger<CrearPedidoProveedorUseCase>.Instance);
-        var pedido = pedidoUseCase.Ejecutar(Fecha, new CrearPedidoProveedorRequest(consolidacion.Id, escenario.Proveedor.Id, "PO-999"));
+        var pedido = pedidoUseCase.Ejecutar(Fecha, new CrearPedidoProveedorRequest(consolidacion.Id, escenario.Proveedor.Id, "PO-999"), usuarioId: 10);
 
         Assert.Throws<ReglaDeNegocioException>(() =>
-            escenario.CrearEntregaUseCase().Ejecutar(Fecha, new CrearEntregaRequest(pedido.Id, "REM-001")));
+            escenario.CrearEntregaUseCase().Ejecutar(Fecha, new CrearEntregaRequest(pedido.Id, "REM-001"), usuarioId: 10));
     }
 
     [Fact]
@@ -302,9 +309,9 @@ public class CrearEntregaUseCaseTests
     {
         var escenario = new Escenario();
         var (pedido, _) = escenario.CrearPedidoConUnDetalle(escenario.CrearProducto("Papel higiénico"), 85, 100);
-        escenario.CrearEntregaUseCase().Ejecutar(Fecha, new CrearEntregaRequest(pedido.Id, "REM-001"));
+        escenario.CrearEntregaUseCase().Ejecutar(Fecha, new CrearEntregaRequest(pedido.Id, "REM-001"), usuarioId: 10);
 
         Assert.Throws<ReglaDeNegocioException>(() =>
-            escenario.CrearEntregaUseCase().Ejecutar(Fecha, new CrearEntregaRequest(pedido.Id, "REM-001")));
+            escenario.CrearEntregaUseCase().Ejecutar(Fecha, new CrearEntregaRequest(pedido.Id, "REM-001"), usuarioId: 10));
     }
 }

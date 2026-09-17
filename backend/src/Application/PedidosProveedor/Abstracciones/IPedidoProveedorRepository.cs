@@ -6,6 +6,11 @@ public interface IPedidoProveedorRepository
 {
     PedidoProveedor? ObtenerPorId(int id);
 
+    // I1-2 (docs/incremento-fase-6-9-frontend-2026-09-17-1028.md): listar para que el Frontend
+    // pueda elegir un pedido en vez de requerir un Id a mano. consolidacionId es opcional (sin
+    // filtro documentado como obligatorio, mismo criterio que Consolidacion.Listar).
+    IReadOnlyList<PedidoProveedor> Listar(int? consolidacionId);
+
     // Necesario para Facturación (TASK-046, incremento MVP): validar si un
     // DetallePedidoProveedor pertenece al PedidoProveedor de una Factura requiere poder
     // resolver el detalle por su Id sin conocer de antemano a qué pedido pertenece (a diferencia

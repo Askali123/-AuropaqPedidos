@@ -2590,7 +2590,268 @@ los puntos 3 y 2 de esta decisión respectivamente — no como excepciones silen
 
 ---
 
-# 67. Registro de futuras decisiones
+# 67. ADR-064 — Envío de requisición fuera de la ventana de solicitud: bloqueo sin excepción
+
+### Estado
+
+`ACEPTADA`
+
+### Contexto
+
+`01-reglas-negocio.md §15` dejaba abierta la Pendiente 1 desde el diseño original: ¿qué ocurre si
+una empresa intenta enviar una requisición después del cierre de la ventana de solicitud del
+periodo (`EstaDentroDeVentanaDeSolicitud()`, TASK-021)? El análisis de estado del proyecto
+realizado el 2026-09-17 (`docs/2026-09-17-tareas.md`) propuso una resolución con tres
+alternativas, presentada y aprobada explícitamente por el usuario ese mismo día.
+
+### Decisión
+
+Bloquear por completo el envío fuera de la ventana de solicitud, sin ninguna excepción, para el
+alcance actual del sistema.
+
+### Motivo
+
+Es la única alternativa que no requiere construir ningún mecanismo nuevo (permiso de excepción,
+reapertura de ventana) sin que exista todavía una necesidad de negocio documentada que lo
+justifique (`CLAUDE.md §44`/§71). Es además consistente con la regla de seguridad por defecto ya
+aplicada en el resto del sistema (`06-seguridad.md`, "ante duda, denegar").
+
+### Alternativas consideradas
+
+- **Permitir excepción a un rol autorizado:** descartada por ahora — requeriría un permiso nuevo
+  (ej. `REQUISICION_ENVIAR_FUERA_DE_VENTANA`) sin que exista un caso de negocio documentado que lo
+  justifique; queda como evolución futura explícita.
+- **Reabrir nuevamente la ventana:** descartada — anula el propósito de tener una ventana de
+  solicitud en primer lugar.
+
+### Consecuencias
+
+Cero complejidad nueva; cero riesgo de una excepción mal definida. Costo aceptado: si aparece una
+necesidad legítima de enviar tarde (falla del sistema, ausencia del responsable), hoy no hay una
+vía formal para resolverlo dentro del mismo periodo.
+
+### Evolución futura
+
+Si en producción aparece una necesidad real y recurrente de excepciones, se puede introducir la
+alternativa de permiso con alcance como una decisión nueva y explícita — no implementarla de forma
+especulativa ahora.
+
+---
+
+# 68. ADR-065 — Una requisición en estado APROBADA es inmutable
+
+### Estado
+
+`ACEPTADA`
+
+### Contexto
+
+`01-reglas-negocio.md §15` dejaba abierta la Pendiente 2: si una requisición aprobada puede
+modificarse y bajo qué condición. `CLAUDE.md §17` ya advertía que tener `REQUISICION_MODIFICAR` no
+implica poder modificar una requisición `APROBADA` sin una regla explícita — regla que hasta hoy no
+existía. El análisis de estado del proyecto del 2026-09-17 (`docs/2026-09-17-tareas.md`) propuso
+una resolución, presentada y aprobada explícitamente por el usuario ese mismo día.
+
+### Decisión
+
+Una `Requisicion` en estado `APROBADA` es inmutable frente a cualquier edición directa (agregar,
+modificar o eliminar detalle; modificar distribución), sin excepción — tampoco para
+`ADMINISTRADOR`.
+
+### Motivo
+
+Protege la integridad de cualquier `Consolidacion` que ya haya derivado datos de esa requisición
+(`CLAUDE.md §25`). Es además consistente con RN-060 punto 6: las excepciones administrativas se
+definen explícitamente, nunca se asumen.
+
+### Alternativas consideradas
+
+- **`APROBADA` editable solo por Administrador, sin restricción adicional:** descartada — repite
+  exactamente el patrón de bypass administrativo que RN-060 ya decidió no aplicar al alcance por
+  empresa.
+- **Reapertura mediante transición explícita a un estado de corrección** (mismo patrón `ENVIADA →
+  DEVUELTA → CORRECCIÓN → REENVÍO` aplicado también a `APROBADA`): es la alternativa más razonable
+  a futuro, pero requiere diseñar un estado/transición nuevo — trabajo de dominio y API que no se
+  asume sin evidencia de necesidad real.
+
+### Consecuencias
+
+Protege la trazabilidad de `Consolidacion` con una implementación mínima (una guarda de estado en
+los casos de uso de edición). Costo aceptado: hoy no existe ningún mecanismo para corregir una
+requisición ya aprobada; la única vía sería una nueva requisición en el siguiente periodo.
+
+### Evolución futura
+
+Si aparece la necesidad real de corregir requisiciones aprobadas, la alternativa de transición
+explícita de estado es el camino natural — debe plantearse como una decisión de arquitectura
+aparte, con evidencia de la necesidad, no de forma especulativa.
+
+---
+
+# 69. ADR-066 — Catálogo de permisos completo para Pedido/Entrega/Factura y cierre de la brecha de autenticación
+
+### Estado
+
+`ACEPTADA`
+
+### Contexto
+
+El análisis de estado del proyecto del 2026-09-17 (`docs/2026-09-17-tareas.md`, P1) encontró que
+`PedidosProveedorController`, `EntregasController` y `FacturasController` no tenían ningún
+`[Authorize]` — alcanzables sin JWT. `06-seguridad.md §9` (RN-059/ADR-062) ya catalogaba
+`PEDIDO_VER/CREAR/CONSOLIDAR`, `ENTREGA_VER/REGISTRAR`, `FACTURA_VER/REGISTRAR`, pero no cubría
+las acciones de transición de estado (`Enviar`/`Cerrar`/`Cancelar` de `PedidoProveedor`, `Anular`
+de `Entrega`/`Factura`) que ya existen en código desde el cierre documental 2026-09-11. Cerrar la
+brecha exigía primero decidir esos permisos faltantes — instrucción explícita del usuario para
+continuar con P1-4 el mismo día.
+
+### Decisión
+
+1. **Catálogo nuevo:** `PEDIDO_ENVIAR`, `PEDIDO_CERRAR`, `PEDIDO_CANCELAR`, `ENTREGA_ANULAR`,
+   `FACTURA_ANULAR` (`06-seguridad.md §9`).
+2. **Asignación de roles por simetría con el permiso base de la misma entidad** (sin inventar
+   roles ni matices nuevos): `PEDIDO_ENVIAR`/`CERRAR`/`CANCELAR` → mismos roles que
+   `PEDIDO_CREAR` (`COMPRAS`, `ADMINISTRADOR`); `ENTREGA_ANULAR` → mismos roles que
+   `ENTREGA_REGISTRAR` (`RECEPCION`, `ADMINISTRADOR`); `FACTURA_ANULAR` → mismos roles que
+   `FACTURA_REGISTRAR` (`COMPRAS`, `ADMINISTRADOR`).
+3. **Mapeo endpoint → permiso completo** para los tres controllers (`06-seguridad.md §52`,
+   detalle también en RN-063), **sin alcance por empresa** (`CLAUDE.md §27`: `PedidoProveedor`
+   puede consolidar varias empresas, no pertenece a una sola).
+4. **Implementación en el mismo cambio:** `[Authorize(Policy = "Permiso:XXX")]` agregado a cada
+   acción de los tres controllers usando este catálogo — a diferencia de RN-061/RN-062 (decisión
+   sin implementar), esta decisión cierra la brecha de seguridad de inmediato.
+
+### Motivo
+
+Dejar los tres controllers sin autenticación era un riesgo de seguridad activo (cualquier request
+no autenticado podía crear pedidos, entregas y facturas), no solo un hueco de autorización
+granular. Decidir el catálogo faltante por simetría con el permiso ya asignado a la misma entidad
+evita inventar una política nueva de autorización sin respaldo en la matriz ya decidida (RN-060).
+
+### Alternativas consideradas
+
+- **Autorizar solo con los permisos ya existentes** (`PEDIDO_CREAR`/`ENTREGA_REGISTRAR`/
+  `FACTURA_REGISTRAR` para todas las acciones, incluidas Enviar/Cerrar/Cancelar/Anular):
+  descartada — mezclaría "crear" con "cerrar/cancelar/anular" bajo el mismo permiso, perdiendo
+  la granularidad que sí tiene `Requisicion` (`REQUISICION_CREAR` distinto de
+  `REQUISICION_ENVIAR`/`APROBAR`/`DEVOLVER`) sin ninguna razón de negocio para tratar Pedido de
+  forma distinta.
+- **Dar `Cerrar`/`Cancelar` a un rol revisor separado** (mismo patrón que
+  `GESTOR_REQUISICIONES` aprueba lo que `SOLICITANTE` envía): descartada — no existe en la matriz
+  ya decidida (RN-060) un rol "revisor de compras" distinto de `COMPRAS`; inventarlo ahora sería
+  una decisión de negocio nueva no pedida.
+- **`[AllowAnonymous]` explícito y documentado como excepción permanente** (dejar los tres
+  controllers sin autenticación a propósito): descartada — contradice `CLAUDE.md §67` (seguridad
+  por defecto: ante duda, denegar) sin ningún requisito de negocio que lo justifique.
+
+### Consecuencias
+
+Los tres controllers quedan protegidos con el mismo mecanismo ya usado en `RequisicionesController`
+(`PermisoPolicyProvider`, dinámico, sin registrar policies nuevas). Las suites de pruebas que
+llamaban estos endpoints sin token (`PedidosProveedorFlujoTests`, `EntregasFlujoTests`,
+`FacturasFlujoTests`, `EntregaAtomicidadTests`, `FlujoIntegradoA2B1B4Tests`) necesitan un token
+válido con los permisos correspondientes — actualizado en el mismo cambio. Las 6 pruebas de
+regresión agregadas el 2026-09-17 (`AutorizacionPedidosEntregasFacturasFlujoTests`, antes `Skip`)
+quedan activas.
+
+### Evolución futura
+
+Si el negocio define un rol de revisión separado para Compras (simétrico a
+`GESTOR_REQUISICIONES`), o necesita alcance por empresa para Pedido/Entrega/Factura en el futuro
+(por ejemplo, si se decide que un `PedidoProveedor` sí puede acotarse a una única empresa en
+ciertos casos), debe registrarse como una decisión nueva que reemplace explícitamente esta.
+
+---
+
+# 70. ADR-067 — Consulta de Consolidación usa el mismo permiso que Pedido
+
+### Estado
+
+`ACEPTADA`
+
+### Contexto
+
+El incremento "Fase 6-9 en Frontend" (`docs/incremento-fase-6-9-frontend-2026-09-17-1028.md`)
+propone agregar `GET /api/v1/consolidaciones` y `GET /api/v1/consolidaciones/{id}` para que el
+Frontend pueda listar consolidaciones en vez de exigir un ID a mano. `06-seguridad.md §9` no
+tiene un permiso propio de lectura para Consolidación — solo `PEDIDO_CONSOLIDAR` (crear).
+
+### Decisión
+
+Los dos endpoints de lectura de Consolidación usan el permiso `PEDIDO_VER` ya catalogado, sin
+crear `CONSOLIDACION_VER`. Sin alcance por empresa (mismo motivo que RN-063, `CLAUDE.md §27`).
+
+### Motivo
+
+Consolidación no tiene ciclo de vida ni responsabilidad distinta de Pedido — es el paso
+inmediatamente anterior en la misma cadena, operado siempre por el mismo rol (`COMPRAS`). Crear
+un permiso nuevo sin necesidad de negocio documentada repetiría el patrón ya descartado en
+RN-059 para Categoría/UnidadMedida.
+
+### Alternativas consideradas
+
+- **Catalogar `CONSOLIDACION_VER` como permiso propio:** descartada — más granular de lo que
+  cualquier RN o flujo de negocio documentado exige; nadie pidió separar "ver consolidaciones"
+  de "ver pedidos".
+
+### Consecuencias
+
+Un usuario con `PEDIDO_VER` (hoy `Compras`, `Recepcion`, `Administrador`) puede leer también
+Consolidación sin necesidad de sembrar un permiso adicional. Si en el futuro el negocio necesita
+separar esa responsabilidad, requiere una decisión nueva que reemplace esta.
+
+### Evolución futura
+
+Si aparece un rol que deba ver Consolidación sin ver Pedido (o viceversa), catalogar
+`CONSOLIDACION_VER` como decisión aparte.
+
+---
+
+# 71. ADR-068 — Distribución de PedidoProveedor debe estar completa antes de enviar
+
+### Estado
+
+`ACEPTADA`
+
+### Contexto
+
+`08-tareas.md` (TASK-041) documenta la regla "la distribución debe mantener coherencia con la
+cantidad pedida" para `PedidoProveedor`, pero `PedidoProveedor.Enviar()` no la valida — a
+diferencia de `Requisicion.Enviar()`, que sí exige `DistribucionCompleta` (RN-011). El incremento
+"Fase 6-9 en Frontend" marcó esto como ambigüedad a resolver antes de construir la pantalla de
+Pedidos. Presentadas dos alternativas al usuario (exigir distribución completa, o permitir envío
+parcial/sin distribuir), confirmó explícitamente la primera.
+
+### Decisión
+
+`PedidoProveedor.Enviar()` exige que la suma de `DistribucionPedido` de cada
+`DetallePedidoProveedor` sea igual a su `CantidadPedida` — mismo criterio que
+`Requisicion.DistribucionCompleta` (RN-011).
+
+### Motivo
+
+Confirmación explícita del usuario, consistente con el patrón ya validado en Requisición: no
+tiene sentido enviar una orden de compra al proveedor sin saber a qué sede va cada unidad.
+
+### Alternativas consideradas
+
+- **Permitir envío parcial o sin distribuir:** descartada explícitamente por el usuario.
+
+### Consecuencias
+
+`PedidosProveedorFlujoTests`/`EscenarioPedidoProveedor` y cualquier otro fixture que envíe un
+pedido sin distribuir completo necesitará agregar la distribución antes de `Enviar()` — mismo
+ajuste que ya existía para Requisición. La implementación (guarda en `PedidoProveedor.Enviar()`)
+queda pendiente como tarea aparte (I2-1).
+
+### Evolución futura
+
+Si el negocio confirma que Compras necesita enviar pedidos sin distribución completa, debe
+registrarse como una decisión nueva que reemplace explícitamente esta.
+
+---
+
+# 72. Registro de futuras decisiones
 
 Las nuevas decisiones importantes deben agregarse al final utilizando el siguiente formato:
 
@@ -2628,7 +2889,7 @@ Las nuevas decisiones importantes deben agregarse al final utilizando el siguien
 
 ---
 
-# 68. Regla para modificar una decisión existente
+# 73. Regla para modificar una decisión existente
 
 Una decisión aceptada no debe cambiarse silenciosamente.
 
@@ -2655,7 +2916,7 @@ Debe quedar documentado:
 
 ---
 
-# 69. Principio final de arquitectura
+# 74. Principio final de arquitectura
 
 La arquitectura de AuropaqPedidos debe buscar el siguiente equilibrio:
 
@@ -2690,7 +2951,7 @@ La arquitectura debe servir al negocio y no convertirse en el negocio.
 
 ---
 
-# 70. Regla maestra del proyecto
+# 75. Regla maestra del proyecto
 
 Ante cualquier nueva funcionalidad, antes de escribir código se debe responder:
 

@@ -21,6 +21,20 @@ public sealed class ConsolidacionRepositoryEfCore : IConsolidacionRepository
             .Include(c => c.Detalles).ThenInclude(d => d.Asignaciones).ThenInclude(a => a.DetalleRequisicionOrigen)
             .FirstOrDefault(c => c.Id == id);
 
+    public IReadOnlyList<Consolidacion> Listar(int? periodoId)
+    {
+        var consulta = _contexto.Consolidaciones
+            .Include(c => c.Periodo)
+            .Include(c => c.Detalles).ThenInclude(d => d.Producto)
+            .Include(c => c.Detalles).ThenInclude(d => d.Asignaciones).ThenInclude(a => a.DetalleRequisicionOrigen)
+            .AsQueryable();
+
+        if (periodoId is not null)
+            consulta = consulta.Where(c => c.Periodo.Id == periodoId);
+
+        return consulta.OrderByDescending(c => c.FechaCreacion).ToList();
+    }
+
     // A2: consulta directa a AsignacionConsolidacion (sin pasar por el DbSet<Consolidacion>
     // público) — solo necesita el shadow FK hacia DetalleRequisicion, no el agregado completo.
     public IReadOnlyList<int> ObtenerIdsDetallesRequisicionYaConsolidados() =>

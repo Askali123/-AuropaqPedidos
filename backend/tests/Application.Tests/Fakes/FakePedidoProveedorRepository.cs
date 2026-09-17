@@ -9,6 +9,12 @@ internal sealed class FakePedidoProveedorRepository : IPedidoProveedorRepository
 
     public PedidoProveedor? ObtenerPorId(int id) => _pedidos.TryGetValue(id, out var pedido) ? pedido : null;
 
+    public IReadOnlyList<PedidoProveedor> Listar(int? consolidacionId) =>
+        _pedidos.Values
+            .Where(p => consolidacionId is null || p.Consolidacion.Id == consolidacionId)
+            .OrderByDescending(p => p.FechaPedido)
+            .ToList();
+
     public DetallePedidoProveedor? ObtenerDetallePorId(int detalleId) =>
         _pedidos.Values.SelectMany(p => p.Detalles).FirstOrDefault(d => d.Id == detalleId);
 

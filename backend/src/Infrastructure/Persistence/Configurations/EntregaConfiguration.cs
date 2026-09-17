@@ -15,6 +15,9 @@ public sealed class EntregaConfiguration : IEntityTypeConfiguration<Entrega>
         builder.HasKey(e => e.Id);
         builder.Property(e => e.Id).ValueGeneratedNever();
 
+        // UsuarioCreacionId agregado 2026-09-17 (P2-2): mismo criterio que
+        // RequisicionConfiguration/ConsolidacionConfiguration.
+        builder.Property(e => e.UsuarioCreacionId).IsRequired();
         builder.Property(e => e.FechaEntrega).IsRequired();
         builder.Property(e => e.NumeroRemision).IsRequired();
 

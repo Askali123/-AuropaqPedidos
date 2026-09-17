@@ -1,5 +1,7 @@
 using System.Net;
+using System.Net.Http.Headers;
 using System.Net.Http.Json;
+using AuropaqPedidos.Domain.Entities;
 using AuropaqPedidos.Infrastructure.Persistence.Context;
 using Microsoft.Extensions.DependencyInjection;
 
@@ -7,6 +9,11 @@ namespace Api.Tests;
 
 // Pruebas de integración de Factura (incremento MVP, TASK-046) a través de la Api real
 // (Controllers + Application + Infrastructure + SQL Server), según 03-arquitectura.md §42.
+//
+// Autorización real agregada 2026-09-17 (RN-063/ADR-066): estos endpoints ya exigen JWT +
+// FACTURA_REGISTRAR/ANULAR (sin alcance por empresa, CLAUDE.md §27). Este archivo prueba
+// comportamiento de negocio, no autorización granular — un único token, autenticado en
+// `_cliente` por defecto desde `NuevoEscenarioAsync`, alcanza para todo el flujo.
 public sealed class FacturasFlujoTests : IClassFixture<ApiWebApplicationFactory>
 {
     private readonly ApiWebApplicationFactory _factory;
@@ -22,7 +29,30 @@ public sealed class FacturasFlujoTests : IClassFixture<ApiWebApplicationFactory>
     {
         using var scope = _factory.Services.CreateScope();
         var db = scope.ServiceProvider.GetRequiredService<AuropaqPedidosDbContext>();
-        return await EscenarioFactura.CrearAsync(db, numero, cantidadPedida);
+        var escenario = await EscenarioFactura.CrearAsync(db, numero, cantidadPedida);
+
+        var token = await AutorizacionHelper.CrearTokenConPermisosAsync(
+            _factory, db, numero, escenario.EmpresaId, "FACTURA_REGISTRAR", "FACTURA_ANULAR", "FACTURA_VER");
+        _cliente.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", token);
+
+        return escenario;
+    }
+
+    // Solo para autenticar `_cliente` en pruebas que no necesitan ningún grafo de datos (ej. 404
+    // contra un id inexistente) — evita pasar por EscenarioFactura.CrearAsync (que siembra un
+    // Periodo con Anio fijo 2026, cuyo Mes ya está agotado por los `numero` 1-11 usados arriba;
+    // reutilizarlo con otro `numero` produciría un choque de UNIQUE(Anio, Mes)).
+    private async Task AutenticarSoloAsync(int numero)
+    {
+        using var scope = _factory.Services.CreateScope();
+        var db = scope.ServiceProvider.GetRequiredService<AuropaqPedidosDbContext>();
+        var empresa = new Empresa(numero, $"Empresa autorizacion {numero}");
+        db.Empresas.Add(empresa);
+        await db.SaveChangesAsync();
+
+        var token = await AutorizacionHelper.CrearTokenConPermisosAsync(
+            _factory, db, numero, empresa.Id, "FACTURA_REGISTRAR", "FACTURA_ANULAR", "FACTURA_VER");
+        _cliente.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", token);
     }
 
     [Fact]
@@ -59,6 +89,35 @@ public sealed class FacturasFlujoTests : IClassFixture<ApiWebApplicationFactory>
         Assert.Equal(750m, detalle.Subtotal);
         Assert.Equal(750m, conDetalle.Data.Subtotal);
         Assert.Equal(769m, conDetalle.Data.Total);
+    }
+
+    [Fact]
+    public async Task Listar_facturas_de_un_pedido_devuelve_las_registradas()
+    {
+        var escenario = await NuevoEscenarioAsync(12);
+        var creada = await (await _cliente.PostAsJsonAsync("/api/v1/facturas", new
+        {
+            proveedorId = escenario.ProveedorId,
+            pedidoProveedorId = escenario.PedidoProveedorId,
+            numeroFactura = "F-012",
+            impuestos = 0m
+        })).Content.ReadFromJsonAsync<Envoltorio<FacturaDto>>();
+
+        var respuesta = await _cliente.GetAsync($"/api/v1/facturas?pedidoProveedorId={escenario.PedidoProveedorId}");
+
+        Assert.Equal(HttpStatusCode.OK, respuesta.StatusCode);
+        var lista = await respuesta.Content.ReadFromJsonAsync<Envoltorio<IReadOnlyList<FacturaDto>>>();
+        Assert.Contains(lista!.Data, f => f.Id == creada!.Data.Id);
+    }
+
+    [Fact]
+    public async Task Obtener_factura_inexistente_devuelve_404()
+    {
+        await AutenticarSoloAsync(103);
+
+        var respuesta = await _cliente.GetAsync("/api/v1/facturas/999999");
+
+        Assert.Equal(HttpStatusCode.NotFound, respuesta.StatusCode);
     }
 
     [Fact]
@@ -118,6 +177,8 @@ public sealed class FacturasFlujoTests : IClassFixture<ApiWebApplicationFactory>
     [Fact]
     public async Task Agregar_detalle_a_factura_inexistente_devuelve_404()
     {
+        await AutenticarSoloAsync(101);
+
         var respuesta = await _cliente.PostAsJsonAsync("/api/v1/facturas/999999/detalles", new
         {
             detallePedidoProveedorId = 1,
@@ -241,6 +302,8 @@ public sealed class FacturasFlujoTests : IClassFixture<ApiWebApplicationFactory>
     [Fact]
     public async Task Anular_una_factura_inexistente_devuelve_404()
     {
+        await AutenticarSoloAsync(102);
+
         var respuesta = await _cliente.PostAsync("/api/v1/facturas/999999/anular", content: null);
 
         Assert.Equal(HttpStatusCode.NotFound, respuesta.StatusCode);

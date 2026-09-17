@@ -16,9 +16,11 @@ namespace AuropaqPedidos.Application.PedidosProveedor;
 // generación de número de pedido (auditoría 2026-09-10, Pendientes 7/9).
 //
 // TASK-056 (Auditoría, punto 8.1 — 2026-09-15): "creación de pedido" es uno de los 6 ejemplos
-// documentados en 04-base-datos.md §33. usuarioId es nullable porque este endpoint todavía no
-// exige autenticación real (a diferencia de Requisición) — se registra cuando el llamador
-// incluye un JWT válido, aunque no sea obligatorio.
+// documentados en 04-base-datos.md §33.
+//
+// usuarioId pasó de opcional a obligatorio el 2026-09-17 (P2-2/P1, docs/2026-09-17-tareas.md):
+// el endpoint ya exige JWT real (RN-063/ADR-066), así que siempre hay un usuario autenticado —
+// y ahora se usa también para PedidoProveedor.UsuarioCreacionId (RN-050/D-11), no solo Auditoria.
 public sealed class CrearPedidoProveedorUseCase
 {
     private readonly IPedidoProveedorRepository _pedidos;
@@ -44,7 +46,7 @@ public sealed class CrearPedidoProveedorUseCase
         _logger = logger;
     }
 
-    public PedidoProveedorResponse Ejecutar(DateTime fechaPedido, CrearPedidoProveedorRequest request, int? usuarioId = null)
+    public PedidoProveedorResponse Ejecutar(DateTime fechaPedido, CrearPedidoProveedorRequest request, int usuarioId)
     {
         var consolidacion = _consolidaciones.ObtenerPorId(request.ConsolidacionId)
             ?? throw new RecursoNoEncontradoException("La consolidación indicada no existe.");
@@ -67,6 +69,7 @@ public sealed class CrearPedidoProveedorUseCase
             consolidacion: consolidacion,
             proveedor: proveedor,
             numeroPedido: request.NumeroPedido,
+            usuarioCreacionId: usuarioId,
             fechaPedido: fechaPedido,
             fechaEntregaEstimada: request.FechaEntregaEstimada,
             observacion: request.Observacion);

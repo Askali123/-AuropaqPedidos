@@ -17,6 +17,9 @@ public sealed class FacturaConfiguration : IEntityTypeConfiguration<Factura>
         builder.Property(f => f.Id).ValueGeneratedNever();
 
         builder.Property(f => f.NumeroFactura).IsRequired();
+        // UsuarioCreacionId agregado 2026-09-17 (P2-2): mismo criterio que
+        // RequisicionConfiguration/ConsolidacionConfiguration.
+        builder.Property(f => f.UsuarioCreacionId).IsRequired();
         builder.Property(f => f.FechaFactura).IsRequired();
 
         // Sin precisión explícita, EF Core generaría una advertencia de build (decimal sin

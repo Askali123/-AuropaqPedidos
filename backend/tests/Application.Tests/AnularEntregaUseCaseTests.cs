@@ -26,6 +26,7 @@ public class AnularEntregaUseCaseTests
         public FakeEntregaRepository Entregas { get; } = new();
         public FakePeriodoRepository Periodos { get; } = new();
         public FakeProveedorRepository Proveedores { get; } = new();
+        public FakeSedeRepository Sedes { get; } = new();
         public FakeGeneradorDeIdentificadores Ids { get; } = new();
         public FakeTransaccionDeEntrega Transaccion { get; } = new();
         public FakeAuditoriaRepository Auditoria { get; } = new();
@@ -69,10 +70,15 @@ public class AnularEntregaUseCaseTests
 
             var pedidoUseCase = new CrearPedidoProveedorUseCase(
                 Pedidos, Consolidaciones, Proveedores, Auditoria, Ids, NullLogger<CrearPedidoProveedorUseCase>.Instance);
-            var pedido = pedidoUseCase.Ejecutar(Fecha, new CrearPedidoProveedorRequest(consolidacion.Id, Proveedor.Id, "PO-001"));
+            var pedido = pedidoUseCase.Ejecutar(Fecha, new CrearPedidoProveedorRequest(consolidacion.Id, Proveedor.Id, "PO-001"), usuarioId: 10);
 
             var detallePedidoUseCase = new AgregarDetallePedidoProveedorUseCase(Pedidos, Ids);
             pedido = detallePedidoUseCase.Ejecutar(pedido.Id, new AgregarDetallePedidoProveedorRequest(consolidacion.Detalles[0].Id, cantidadPedida));
+
+            // RN-065/D-18 (2026-09-17): distribución completa exigida antes de enviar.
+            Sedes.Agregar(sede);
+            var distribucionUseCase = new AgregarDistribucionPedidoUseCase(Pedidos, Sedes, Ids);
+            pedido = distribucionUseCase.Ejecutar(pedido.Id, pedido.Detalles[0].Id, sede.Id, cantidadPedida);
 
             pedido = new EnviarPedidoProveedorUseCase(Pedidos).Ejecutar(pedido.Id);
 
@@ -81,7 +87,7 @@ public class AnularEntregaUseCaseTests
 
         public EntregaResponse CrearEntrega(int pedidoId, string numeroRemision) =>
             new CrearEntregaUseCase(Entregas, Pedidos, Auditoria, Ids, NullLogger<CrearEntregaUseCase>.Instance)
-                .Ejecutar(Fecha, new CrearEntregaRequest(pedidoId, numeroRemision));
+                .Ejecutar(Fecha, new CrearEntregaRequest(pedidoId, numeroRemision), usuarioId: 10);
 
         public PedidoProveedorEstado EstadoActualDelPedido(int pedidoId) => Pedidos.ObtenerPorId(pedidoId)!.Estado;
     }

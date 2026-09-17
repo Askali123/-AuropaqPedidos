@@ -12,6 +12,9 @@ const ENLACES = [
   { a: "/requisiciones", etiqueta: "Requisiciones" },
   { a: "/revision", etiqueta: "Revisión" },
   { a: "/solicitudes-producto", etiqueta: "Solicitudes de producto" },
+  { a: "/consolidacion", etiqueta: "Consolidación" },
+  { a: "/pedidos-proveedor", etiqueta: "Pedidos a proveedor" },
+  { a: "/entregas", etiqueta: "Entregas" },
   { a: "/facturacion", etiqueta: "Facturación" },
   { a: "/seguridad", etiqueta: "Seguridad" },
 ] as const;

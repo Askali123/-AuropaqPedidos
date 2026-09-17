@@ -44,7 +44,7 @@ public class RegistrarFacturaUseCaseTests
             var consolidacion = new Consolidacion(1, periodo, usuarioCreacionId: 1, estado: "GENERADA", fechaCreacion: Fecha);
             consolidacion.AgregarAsignacion(1, 1, requisicion, detalleReq, 100);
 
-            Pedido = new PedidoProveedor(1, consolidacion, Proveedor, "PO-001", Fecha);
+            Pedido = new PedidoProveedor(1, consolidacion, Proveedor, "PO-001", usuarioCreacionId: 10, Fecha);
             Pedido.AgregarDetalle(1, consolidacion.Detalles[0], 100);
             Pedidos.Guardar(Pedido);
         }
@@ -63,11 +63,12 @@ public class RegistrarFacturaUseCaseTests
     {
         var escenario = new Escenario();
 
-        var respuesta = escenario.CrearUseCase().Ejecutar(Fecha, escenario.CrearRequest());
+        var respuesta = escenario.CrearUseCase().Ejecutar(Fecha, escenario.CrearRequest(), usuarioId: 10);
 
         Assert.Equal(escenario.Proveedor.Id, respuesta.ProveedorId);
         Assert.Equal(escenario.Pedido.Id, respuesta.PedidoProveedorId);
         Assert.Equal("F-001", respuesta.NumeroFactura);
+        Assert.Equal(10, respuesta.UsuarioCreacionId);
         Assert.Equal(0m, respuesta.Subtotal);
         Assert.Equal(19m, respuesta.Impuestos);
         Assert.Equal(19m, respuesta.Total);
@@ -81,7 +82,7 @@ public class RegistrarFacturaUseCaseTests
         var escenario = new Escenario();
 
         Assert.Throws<RecursoNoEncontradoException>(() =>
-            escenario.CrearUseCase().Ejecutar(Fecha, escenario.CrearRequest(proveedorId: 999)));
+            escenario.CrearUseCase().Ejecutar(Fecha, escenario.CrearRequest(proveedorId: 999), usuarioId: 10));
     }
 
     [Fact]
@@ -91,7 +92,7 @@ public class RegistrarFacturaUseCaseTests
         escenario.Proveedor.Desactivar();
 
         Assert.Throws<ReglaDeNegocioException>(() =>
-            escenario.CrearUseCase().Ejecutar(Fecha, escenario.CrearRequest()));
+            escenario.CrearUseCase().Ejecutar(Fecha, escenario.CrearRequest(), usuarioId: 10));
     }
 
     [Fact]
@@ -100,7 +101,7 @@ public class RegistrarFacturaUseCaseTests
         var escenario = new Escenario();
 
         Assert.Throws<RecursoNoEncontradoException>(() =>
-            escenario.CrearUseCase().Ejecutar(Fecha, escenario.CrearRequest(pedidoId: 999)));
+            escenario.CrearUseCase().Ejecutar(Fecha, escenario.CrearRequest(pedidoId: 999), usuarioId: 10));
     }
 
     [Fact]
@@ -111,7 +112,7 @@ public class RegistrarFacturaUseCaseTests
         escenario.Proveedores.Agregar(otroProveedor);
 
         Assert.Throws<ReglaDeNegocioException>(() =>
-            escenario.CrearUseCase().Ejecutar(Fecha, escenario.CrearRequest(proveedorId: otroProveedor.Id)));
+            escenario.CrearUseCase().Ejecutar(Fecha, escenario.CrearRequest(proveedorId: otroProveedor.Id), usuarioId: 10));
     }
 
     // D-09/RN-049 (cierre documental 2026-09-11): NumeroFactura único dentro del proveedor.
@@ -119,9 +120,9 @@ public class RegistrarFacturaUseCaseTests
     public void No_permite_dos_facturas_con_el_mismo_numero_para_el_mismo_proveedor()
     {
         var escenario = new Escenario();
-        escenario.CrearUseCase().Ejecutar(Fecha, escenario.CrearRequest());
+        escenario.CrearUseCase().Ejecutar(Fecha, escenario.CrearRequest(), usuarioId: 10);
 
         Assert.Throws<ReglaDeNegocioException>(() =>
-            escenario.CrearUseCase().Ejecutar(Fecha, escenario.CrearRequest()));
+            escenario.CrearUseCase().Ejecutar(Fecha, escenario.CrearRequest(), usuarioId: 10));
     }
 }

@@ -2,6 +2,9 @@ import { Navigate, Route, Routes } from "react-router-dom";
 import { AppLayout } from "../components/AppLayout";
 import { LoginPage } from "../pages/LoginPage";
 import { RequisicionesPage } from "../pages/RequisicionesPage";
+import { ConsolidacionPage } from "../pages/ConsolidacionPage";
+import { PedidosProveedorPage } from "../pages/PedidosProveedorPage";
+import { EntregasPage } from "../pages/EntregasPage";
 import { FacturacionPage } from "../pages/FacturacionPage";
 import { SeguridadPage } from "../pages/SeguridadPage";
 import { CatalogoPage } from "../pages/CatalogoPage";
@@ -22,6 +25,9 @@ export function AppRoutes() {
         }
       >
         <Route path="/requisiciones" element={<RequisicionesPage />} />
+        <Route path="/consolidacion" element={<ConsolidacionPage />} />
+        <Route path="/pedidos-proveedor" element={<PedidosProveedorPage />} />
+        <Route path="/entregas" element={<EntregasPage />} />
         <Route path="/facturacion" element={<FacturacionPage />} />
         <Route path="/seguridad" element={<SeguridadPage />} />
         <Route path="/catalogo" element={<CatalogoPage />} />

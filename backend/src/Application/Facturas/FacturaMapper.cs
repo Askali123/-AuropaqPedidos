@@ -12,6 +12,7 @@ internal static class FacturaMapper
         ProveedorId: factura.Proveedor.Id,
         PedidoProveedorId: factura.PedidoProveedor.Id,
         NumeroFactura: factura.NumeroFactura,
+        UsuarioCreacionId: factura.UsuarioCreacionId,
         FechaFactura: factura.FechaFactura,
         Subtotal: factura.Subtotal,
         Impuestos: factura.Impuestos,

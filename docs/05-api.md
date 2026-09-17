@@ -1218,16 +1218,26 @@ Esta funcionalidad permitirá automatizar la búsqueda del código utilizado por
 
 # 31. Consolidación
 
-La consolidación se implementará después del MVP.
+> **Actualización (implementado 2026-09-17, P2-1 de `docs/2026-09-17-tareas.md`):**
+> `ConsolidacionesController` ya existe, exponiendo únicamente `CrearConsolidacionUseCase`
+> (TASK-036/RN-027-029) — el único caso de uso real. `GET`/`{id}/generar` siguen sin
+> implementarse: no existe caso de uso ni contrato que los respalde (mismo criterio de
+> minimalismo ya usado en `FacturasController`/`PedidosProveedorController`).
 
-Endpoints conceptuales:
+> **Actualización (2026-09-17, I1-1,
+> `docs/incremento-fase-6-9-frontend-2026-09-17-1028.md`):** `GET` (listar/consultar) ya
+> implementado — `ListarConsolidacionesUseCase`/`ObtenerConsolidacionUseCase`. `GET
+> /consolidaciones` acepta `periodoId` opcional por query string.
+
+Endpoints implementados:
 
 ```http
 GET  /api/v1/consolidaciones
 GET  /api/v1/consolidaciones/{id}
 POST /api/v1/consolidaciones
-POST /api/v1/consolidaciones/{id}/generar
 ```
+
+No implementado (sin caso de uso/contrato que lo respalde): `POST {id}/generar`.
 
 La consolidación debe tomar como fuente las requisiciones aprobadas.
 
@@ -1239,9 +1249,16 @@ No debe modificar las requisiciones originales.
 
 > **Actualización (implementado 2026-09-11):** `PedidosProveedorController` ya existe. Ciclo de estados cerrado (RN-043/RN-044, `01-reglas-negocio.md §11`): `BORRADOR → ENVIADO → PARCIALMENTE_ENTREGADO → ENTREGADO → CERRADO`, con `CANCELADO` desde los tres primeros.
 
+> **Actualización (2026-09-17, I1-2,
+> `docs/incremento-fase-6-9-frontend-2026-09-17-1028.md`):** `GET` (listar/consultar) ya
+> implementado — `ListarPedidosProveedorUseCase`/`ObtenerPedidoProveedorUseCase`. `GET
+> /pedidos-proveedor` acepta `consolidacionId` opcional por query string.
+
 Endpoints implementados:
 
 ```http
+GET  /api/v1/pedidos-proveedor
+GET  /api/v1/pedidos-proveedor/{id}
 POST /api/v1/pedidos-proveedor
 POST /api/v1/pedidos-proveedor/{id}/detalles
 POST /api/v1/pedidos-proveedor/{id}/detalles/{detalleId}/distribuciones
@@ -1250,7 +1267,7 @@ POST /api/v1/pedidos-proveedor/{id}/cerrar
 POST /api/v1/pedidos-proveedor/{id}/cancelar
 ```
 
-No implementados (sin caso de uso/contrato que los respalde; mismo criterio de minimalismo que `FacturasController` — no se inventan): `GET` (listar/consultar un pedido), `PUT` (reemplazo completo).
+No implementado (sin caso de uso/contrato que lo respalde; mismo criterio de minimalismo que `FacturasController` — no se inventa): `PUT` (reemplazo completo).
 
 ---
 
@@ -1258,16 +1275,21 @@ No implementados (sin caso de uso/contrato que los respalde; mismo criterio de m
 
 > **Actualización (implementado 2026-09-11):** creación de Entrega por HTTP ya disponible. La cabecera se crea bajo el pedido (ruta anidada, tal como estaba documentada abajo); detalle, distribución y anulación se exponen bajo `/api/v1/entregas/{id}` en `EntregasController`.
 
+> **Actualización (2026-09-17, I1-3,
+> `docs/incremento-fase-6-9-frontend-2026-09-17-1028.md`):** `GET` ya implementado —
+> `ListarEntregasUseCase` (lista las entregas de un pedido, ruta anidada — mismo criterio que la
+> creación) y `ObtenerEntregaUseCase` (consulta individual).
+
 Endpoints implementados:
 
 ```http
+GET  /api/v1/pedidos-proveedor/{id}/entregas
+GET  /api/v1/entregas/{id}
 POST /api/v1/pedidos-proveedor/{id}/entregas
 POST /api/v1/entregas/{id}/detalles
 POST /api/v1/entregas/{id}/detalles/{detalleId}/distribuciones
 POST /api/v1/entregas/{id}/anular
 ```
-
-No implementados (sin caso de uso ni contrato definido): `GET` (listar/consultar).
 
 Una entrega debe poder representar una entrega parcial.
 
@@ -1285,16 +1307,23 @@ Entrega 2 = 40
 # 34. Facturas
 
 > **Actualización (implementado 2026-09-11):** cardinalidad `PedidoProveedor 1 ─── N Factura` ya confirmada para el alcance actual (RN-039/D-06) — ya no depende de validar el proceso contable real (RN-038: Auropaq Pedidos no es sistema contable).
+>
+> **Actualización (2026-09-17, I1-4,
+> `docs/incremento-fase-6-9-frontend-2026-09-17-1028.md`):** `GET` ya implementado —
+> `ListarFacturasUseCase` (exige `pedidoProveedorId` por query string, reutiliza
+> `IFacturaRepository.ObtenerPorPedido`) y `ObtenerFacturaUseCase`.
 
 Endpoints implementados:
 
 ```http
+GET  /api/v1/facturas?pedidoProveedorId={id}
+GET  /api/v1/facturas/{id}
 POST /api/v1/facturas
 POST /api/v1/facturas/{id}/detalles
 POST /api/v1/facturas/{id}/anular
 ```
 
-No implementados (sin caso de uso ni contrato definido): `GET` (listar/consultar), `PUT`.
+No implementado (sin caso de uso ni contrato definido): `PUT`.
 
 ---
 

@@ -17,6 +17,16 @@ public sealed class PedidoProveedorRepositoryEfCore : IPedidoProveedorRepository
     public PedidoProveedor? ObtenerPorId(int id) =>
         Consulta().FirstOrDefault(p => p.Id == id);
 
+    public IReadOnlyList<PedidoProveedor> Listar(int? consolidacionId)
+    {
+        var consulta = Consulta();
+
+        if (consolidacionId is not null)
+            consulta = consulta.Where(p => p.Consolidacion.Id == consolidacionId);
+
+        return consulta.OrderByDescending(p => p.FechaPedido).ToList();
+    }
+
     // Consulta directa a DetallePedidoProveedor (sin pasar por el DbSet<PedidoProveedor>
     // público): necesaria para Facturación (TASK-046), que debe poder resolver un detalle por Id
     // sin conocer de antemano a qué pedido pertenece. Comparte el mismo DbContext con scope de

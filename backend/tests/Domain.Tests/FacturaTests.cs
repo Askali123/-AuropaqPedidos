@@ -36,14 +36,14 @@ public class FacturaTests
         consolidacion.AgregarAsignacion(1, 1, requisicion, detalleReq, cantidadPedida);
 
         var proveedor = new Proveedor(1, "Proveedor Uno");
-        var pedido = new PedidoProveedor(1, consolidacion, proveedor, "PO-001", Fecha);
+        var pedido = new PedidoProveedor(1, consolidacion, proveedor, "PO-001", usuarioCreacionId: 10, Fecha);
         var detallePedido = pedido.AgregarDetalle(1, consolidacion.Detalles[0], cantidadPedida);
 
         return (pedido, detallePedido, proveedor);
     }
 
     private static Factura CrearFactura(PedidoProveedor pedido, Proveedor proveedor) => new(
-        1, proveedor, pedido, "F-001", Fecha, impuestos: 19m);
+        1, proveedor, pedido, "F-001", usuarioCreacionId: 10, Fecha, impuestos: 19m);
 
     [Fact]
     public void Crea_una_factura_valida_para_un_pedido_del_mismo_proveedor()
@@ -68,7 +68,7 @@ public class FacturaTests
         var (pedido, _, _) = CrearPedidoConUnDetalle(CrearProducto(1, "Papel higiénico"), 100);
 
         Assert.Throws<ReglaDeNegocioException>(() =>
-            new Factura(1, proveedor: null!, pedido, "F-001", Fecha, 19m));
+            new Factura(1, proveedor: null!, pedido, "F-001", usuarioCreacionId: 10, Fecha, 19m));
     }
 
     [Fact]
@@ -77,7 +77,7 @@ public class FacturaTests
         var (_, _, proveedor) = CrearPedidoConUnDetalle(CrearProducto(1, "Papel higiénico"), 100);
 
         Assert.Throws<ReglaDeNegocioException>(() =>
-            new Factura(1, proveedor, pedidoProveedor: null!, "F-001", Fecha, 19m));
+            new Factura(1, proveedor, pedidoProveedor: null!, "F-001", usuarioCreacionId: 10, Fecha, 19m));
     }
 
     [Fact]
@@ -87,7 +87,7 @@ public class FacturaTests
         var otroProveedor = new Proveedor(2, "Otro proveedor");
 
         Assert.Throws<ReglaDeNegocioException>(() =>
-            new Factura(1, otroProveedor, pedido, "F-001", Fecha, 19m));
+            new Factura(1, otroProveedor, pedido, "F-001", usuarioCreacionId: 10, Fecha, 19m));
     }
 
     [Fact]
@@ -96,7 +96,7 @@ public class FacturaTests
         var (pedido, _, proveedor) = CrearPedidoConUnDetalle(CrearProducto(1, "Papel higiénico"), 100);
 
         Assert.Throws<ReglaDeNegocioException>(() =>
-            new Factura(1, proveedor, pedido, numeroFactura: "", Fecha, 19m));
+            new Factura(1, proveedor, pedido, numeroFactura: "", usuarioCreacionId: 10, Fecha, 19m));
     }
 
     [Fact]

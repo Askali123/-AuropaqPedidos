@@ -1,4 +1,5 @@
 using System.Net;
+using System.Net.Http.Headers;
 using System.Net.Http.Json;
 using AuropaqPedidos.Infrastructure.Persistence.Context;
 using Microsoft.Extensions.DependencyInjection;
@@ -8,6 +9,11 @@ namespace Api.Tests;
 // Pruebas de integración de Entrega (creación por HTTP, 2026-09-11: crear cabecera, agregar
 // detalle, agregar distribución, anular — D-04/RN-046) a través de la Api real (Controllers +
 // Application + Infrastructure + SQL Server), según 03-arquitectura.md §42.
+//
+// Autorización real agregada 2026-09-17 (RN-063/ADR-066): estos endpoints ya exigen JWT +
+// PEDIDO_*/ENTREGA_* (sin alcance por empresa, CLAUDE.md §27). Este archivo prueba comportamiento
+// de negocio, no autorización granular — un único token con todos los permisos necesarios,
+// autenticado en `_cliente` por defecto desde `NuevoEscenarioAsync`, alcanza para todo el flujo.
 public sealed class EntregasFlujoTests : IClassFixture<ApiWebApplicationFactory>
 {
     private readonly ApiWebApplicationFactory _factory;
@@ -23,7 +29,15 @@ public sealed class EntregasFlujoTests : IClassFixture<ApiWebApplicationFactory>
     {
         using var scope = _factory.Services.CreateScope();
         var db = scope.ServiceProvider.GetRequiredService<AuropaqPedidosDbContext>();
-        return await EscenarioPedidoProveedor.CrearAsync(db, numero, cantidadNecesaria);
+        var escenario = await EscenarioPedidoProveedor.CrearAsync(db, numero, cantidadNecesaria);
+
+        var token = await AutorizacionHelper.CrearTokenConPermisosAsync(
+            _factory, db, numero, escenario.EmpresaId,
+            "PEDIDO_CREAR", "PEDIDO_ENVIAR", "PEDIDO_CERRAR", "PEDIDO_CANCELAR",
+            "ENTREGA_REGISTRAR", "ENTREGA_ANULAR", "ENTREGA_VER");
+        _cliente.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", token);
+
+        return escenario;
     }
 
     // Crea, agrega detalle (cantidadPedida) y envía un PedidoProveedor por HTTP — prerrequisito
@@ -45,10 +59,18 @@ public sealed class EntregasFlujoTests : IClassFixture<ApiWebApplicationFactory>
             cantidadPedida
         });
         var conDetalle = await respuestaDetalle.Content.ReadFromJsonAsync<Envoltorio<PedidoProveedorDto>>();
+        var detalleId = conDetalle!.Data.Detalles[0].Id;
+
+        // RN-065/D-18 (2026-09-17): distribución completa exigida antes de enviar.
+        await _cliente.PostAsJsonAsync($"/api/v1/pedidos-proveedor/{pedido.Data.Id}/detalles/{detalleId}/distribuciones", new
+        {
+            sedeId = escenario.SedeId,
+            cantidad = cantidadPedida
+        });
 
         await _cliente.PostAsync($"/api/v1/pedidos-proveedor/{pedido.Data.Id}/enviar", content: null);
 
-        return (pedido.Data.Id, conDetalle!.Data.Detalles[0].Id);
+        return (pedido.Data.Id, detalleId);
     }
 
     [Fact]
@@ -71,8 +93,37 @@ public sealed class EntregasFlujoTests : IClassFixture<ApiWebApplicationFactory>
     }
 
     [Fact]
+    public async Task Obtener_entrega_por_id_devuelve_los_mismos_datos_que_la_creacion()
+    {
+        var escenario = await NuevoEscenarioAsync(14);
+        var (pedidoId, _) = await CrearYEnviarPedidoAsync(escenario, "PO-014", cantidadPedida: 100);
+        var creada = await (await _cliente.PostAsJsonAsync($"/api/v1/pedidos-proveedor/{pedidoId}/entregas", new
+        {
+            numeroRemision = "REM-014"
+        })).Content.ReadFromJsonAsync<Envoltorio<EntregaDto>>();
+
+        var respuesta = await _cliente.GetAsync($"/api/v1/entregas/{creada!.Data.Id}");
+
+        Assert.Equal(HttpStatusCode.OK, respuesta.StatusCode);
+        var entrega = await respuesta.Content.ReadFromJsonAsync<Envoltorio<EntregaDto>>();
+        Assert.Equal("REM-014", entrega!.Data.NumeroRemision);
+    }
+
+    [Fact]
+    public async Task Obtener_entrega_inexistente_devuelve_404()
+    {
+        await NuevoEscenarioAsync(15); // solo para autenticar _cliente.
+
+        var respuesta = await _cliente.GetAsync("/api/v1/entregas/999999");
+
+        Assert.Equal(HttpStatusCode.NotFound, respuesta.StatusCode);
+    }
+
+    [Fact]
     public async Task Crear_entrega_para_pedido_inexistente_devuelve_404()
     {
+        await NuevoEscenarioAsync(101); // solo para autenticar _cliente.
+
         var respuesta = await _cliente.PostAsJsonAsync("/api/v1/pedidos-proveedor/999999/entregas", new
         {
             numeroRemision = "REM-001"
@@ -251,6 +302,8 @@ public sealed class EntregasFlujoTests : IClassFixture<ApiWebApplicationFactory>
     [Fact]
     public async Task Anular_una_entrega_inexistente_devuelve_404()
     {
+        await NuevoEscenarioAsync(102); // solo para autenticar _cliente.
+
         var respuesta = await _cliente.PostAsync("/api/v1/entregas/999999/anular", content: null);
 
         Assert.Equal(HttpStatusCode.NotFound, respuesta.StatusCode);

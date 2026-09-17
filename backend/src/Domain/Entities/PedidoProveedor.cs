@@ -14,12 +14,18 @@ namespace AuropaqPedidos.Domain.Entities;
 // genera un número de pedido. Estado es un enum con ciclo cerrado (D-03/RN-043) y transiciones
 // controladas (Enviar/ActualizarEstadoPorEntregas/Cerrar/Cancelar, D-08/RN-044); un pedido
 // siempre se crea en BORRADOR.
+//
+// UsuarioCreacionId agregado 2026-09-17 (P2-2, docs/2026-09-17-tareas.md): RN-050/D-11 pospuso
+// este campo hasta que existiera autenticación real (TASK-008 + Fase 10) — ya existe desde
+// 2026-09-15, y desde el mismo día (P1, RN-063/ADR-066) el JWT es obligatorio en
+// `PedidosProveedorController`, así que siempre hay un usuario autenticado disponible.
 public sealed class PedidoProveedor
 {
     public int Id { get; }
     public Consolidacion Consolidacion { get; }
     public Proveedor Proveedor { get; }
     public string NumeroPedido { get; }
+    public int UsuarioCreacionId { get; }
     public DateTime FechaPedido { get; }
     public DateTime? FechaEntregaEstimada { get; }
     public PedidoProveedorEstado Estado { get; private set; }
@@ -41,6 +47,7 @@ public sealed class PedidoProveedor
         Consolidacion consolidacion,
         Proveedor proveedor,
         string numeroPedido,
+        int usuarioCreacionId,
         DateTime fechaPedido,
         DateTime? fechaEntregaEstimada = null,
         string? observacion = null)
@@ -58,17 +65,24 @@ public sealed class PedidoProveedor
         Consolidacion = consolidacion;
         Proveedor = proveedor;
         NumeroPedido = numeroPedido;
+        UsuarioCreacionId = usuarioCreacionId;
         FechaPedido = fechaPedido;
         Estado = PedidoProveedorEstado.Borrador;
         FechaEntregaEstimada = fechaEntregaEstimada;
         Observacion = observacion;
     }
 
-    // D-03/RN-043: BORRADOR -> ENVIADO.
+    // D-03/RN-043: BORRADOR -> ENVIADO. RN-065/D-18 (2026-09-17): la distribución de cada
+    // detalle debe estar completa antes de enviar — mismo criterio que Requisicion.Enviar()
+    // (RN-011).
     public void Enviar()
     {
         if (Estado != PedidoProveedorEstado.Borrador)
             throw new ReglaDeNegocioException("Solo un pedido en BORRADOR puede enviarse.");
+
+        if (_detalles.Any(d => !d.DistribucionCompleta))
+            throw new ReglaDeNegocioException(
+                "Todos los detalles deben tener su cantidad pedida completamente distribuida entre sedes antes de enviar.");
 
         Estado = PedidoProveedorEstado.Enviado;
     }

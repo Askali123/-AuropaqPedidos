@@ -25,6 +25,7 @@ public class CerrarPedidoProveedorUseCaseTests
         public FakeEntregaRepository Entregas { get; } = new();
         public FakePeriodoRepository Periodos { get; } = new();
         public FakeProveedorRepository Proveedores { get; } = new();
+        public FakeSedeRepository Sedes { get; } = new();
         public FakeGeneradorDeIdentificadores Ids { get; } = new();
         public FakeTransaccionDeEntrega Transaccion { get; } = new();
         public FakeAuditoriaRepository Auditoria { get; } = new();
@@ -71,10 +72,15 @@ public class CerrarPedidoProveedorUseCaseTests
 
             var pedidoUseCase = new CrearPedidoProveedorUseCase(
                 Pedidos, Consolidaciones, Proveedores, Auditoria, Ids, NullLogger<CrearPedidoProveedorUseCase>.Instance);
-            var pedido = pedidoUseCase.Ejecutar(Fecha, new CrearPedidoProveedorRequest(consolidacion.Id, Proveedor.Id, "PO-001"));
+            var pedido = pedidoUseCase.Ejecutar(Fecha, new CrearPedidoProveedorRequest(consolidacion.Id, Proveedor.Id, "PO-001"), usuarioId: 10);
 
             var detallePedidoUseCase = new AgregarDetallePedidoProveedorUseCase(Pedidos, Ids);
             pedido = detallePedidoUseCase.Ejecutar(pedido.Id, new AgregarDetallePedidoProveedorRequest(consolidacion.Detalles[0].Id, cantidadPedida));
+
+            // RN-065/D-18 (2026-09-17): distribución completa exigida antes de enviar.
+            Sedes.Agregar(sede);
+            var distribucionUseCase = new AgregarDistribucionPedidoUseCase(Pedidos, Sedes, Ids);
+            pedido = distribucionUseCase.Ejecutar(pedido.Id, pedido.Detalles[0].Id, sede.Id, cantidadPedida);
 
             return EnviarUseCase().Ejecutar(pedido.Id);
         }
@@ -83,7 +89,7 @@ public class CerrarPedidoProveedorUseCaseTests
         public void CompletarEntrega(PedidoProveedorResponse pedido)
         {
             var crearEntregaUseCase = new CrearEntregaUseCase(Entregas, Pedidos, Auditoria, Ids, NullLogger<CrearEntregaUseCase>.Instance);
-            var entrega = crearEntregaUseCase.Ejecutar(Fecha, new CrearEntregaRequest(pedido.Id, "REM-001"));
+            var entrega = crearEntregaUseCase.Ejecutar(Fecha, new CrearEntregaRequest(pedido.Id, "REM-001"), usuarioId: 10);
             AgregarDetalleEntregaUseCase().Ejecutar(entrega.Id, new AgregarDetalleEntregaRequest(pedido.Detalles[0].Id, pedido.Detalles[0].CantidadPedida));
         }
     }
@@ -122,7 +128,7 @@ public class CerrarPedidoProveedorUseCaseTests
 
         var crearEntregaUseCase = new CrearEntregaUseCase(
             escenario.Entregas, escenario.Pedidos, escenario.Auditoria, escenario.Ids, NullLogger<CrearEntregaUseCase>.Instance);
-        var entrega = crearEntregaUseCase.Ejecutar(Fecha, new CrearEntregaRequest(pedido.Id, "REM-001"));
+        var entrega = crearEntregaUseCase.Ejecutar(Fecha, new CrearEntregaRequest(pedido.Id, "REM-001"), usuarioId: 10);
         escenario.AgregarDetalleEntregaUseCase().Ejecutar(entrega.Id, new AgregarDetalleEntregaRequest(pedido.Detalles[0].Id, 60));
 
         Assert.Throws<ReglaDeNegocioException>(() => escenario.CerrarUseCase().Ejecutar(pedido.Id));

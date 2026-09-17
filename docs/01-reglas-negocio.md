@@ -1275,6 +1275,160 @@ cuando esas fases se implementen (Fases 7-9, posteriores al MVP) — no se activ
 punto 8 del bloque A (`progreso.md`) con este catálogo y esta matriz ya definidos, sin más
 decisiones de negocio pendientes para autorización del MVP.
 
+> **Actualización (2026-09-17):** los endpoints de Pedido/Entrega/Factura **ya existen**
+> (`PedidosProveedorController`/`EntregasController`/`FacturasController`, Fases 7-9), así que la
+> condición que justificaba no activar `[Authorize]` para ellos ya no aplica. Ver
+> `docs/2026-09-17-tareas.md` Prioridad 1 (P1-1 a P1-4) y `docs/decisiones-pendientes.md` — es un
+> hueco de implementación de seguridad ya identificado, no una ambigüedad de negocio nueva.
+
+## RN-061 — Envío de requisición fuera de la ventana de solicitud: bloqueo sin excepción
+
+*(Cierra Pendiente 1 — cierre documental 2026-09-17. Propuesta presentada y aprobada por el
+usuario en `docs/2026-09-17-tareas.md §3`. Ver ADR-064.)*
+
+Si una empresa intenta enviar una requisición (`POST /requisiciones/{id}/enviar`) después de que
+se cerró la ventana de solicitud del periodo (`EstaDentroDeVentanaDeSolicitud()`, TASK-021), la
+operación se **bloquea por completo, sin excepción**. No existe ningún permiso ni rol que permita
+enviar fuera de ventana en el alcance actual (ninguna variante de la Alternativa B se implementa
+sin una decisión nueva y explícita).
+
+Reabrir la ventana (Alternativa C) tampoco se implementa: contradice el propósito de tener una
+ventana en primer lugar (`CLAUDE.md §30`).
+
+**Actualización (verificación 2026-09-17, mismo día, P3-1):** al implementar la guarda se
+descubrió que **ya existía** — `Requisicion.Enviar()` (Domain, TASK-029) ya llama
+`Periodo.EstaDentroDeVentanaDeSolicitud(fechaEnvio)` y lanza `ReglaDeNegocioException` si falla,
+sin ninguna excepción ni bypass, exactamente como decide esta regla. Ya estaba probado
+(`RequisicionFlujoTests.No_permite_enviar_fuera_de_la_ventana_del_periodo`, Domain.Tests). No fue
+necesario ningún cambio de código — la ambigüedad era sobre si esta era la decisión final, no
+sobre código faltante. P3-1 queda cerrada.
+
+## RN-062 — Una requisición en estado APROBADA es inmutable
+
+*(Cierra Pendiente 2 — cierre documental 2026-09-17. Propuesta presentada y aprobada por el
+usuario en `docs/2026-09-17-tareas.md §3`. Ver ADR-065.)*
+
+Ninguna operación de edición directa (agregar/modificar/eliminar detalle, modificar
+distribución) puede ejecutarse sobre una `Requisicion` en estado `APROBADA`, sin excepción — ni
+siquiera para `ADMINISTRADOR` (mismo criterio de RN-060 punto 6: las excepciones administrativas
+se definen explícitamente, no se asumen).
+
+Esto protege la trazabilidad de cualquier `Consolidacion` que ya haya derivado datos de esa
+requisición (`CLAUDE.md §25`: la consolidación no debe modificar las requisiciones originales, y
+tampoco debe quedar expuesta a que su origen cambie por debajo).
+
+Si en el futuro el negocio necesita corregir una requisición ya aprobada, el mecanismo es una
+transición de estado explícita y trazable (mismo patrón `ENVIADA → DEVUELTA → CORRECCIÓN →
+REENVÍO`, `CLAUDE.md §21`) — **no** edición directa del registro aprobado. Definir ese mecanismo
+es una decisión de arquitectura aparte, a plantear solo si aparece la necesidad real.
+
+**Actualización (verificación 2026-09-17, mismo día, P3-2):** al implementar la guarda se
+descubrió que **ya existía** — `Requisicion.EsEditable` (Domain, TASK-023..026) ya es `false` para
+cualquier estado distinto de `BORRADOR`/`DEVUELTA` (incluida `APROBADA`), y cada operación de
+edición (`AgregarDetalle`/`ModificarCantidadDetalle`/`ModificarObservacionDetalle`/
+`EliminarDetalle`/`AgregarDistribucion`/`ModificarDistribucion`/`EliminarDistribucion`) llama
+`AsegurarEditable()` primero, sin excepción para ningún rol (ni `ADMINISTRADOR`). Se agregó una
+prueba dedicada que fija explícitamente el caso `APROBADA`
+(`RequisicionFlujoTests.No_permite_agregar_detalle_a_una_requisicion_aprobada`, Domain.Tests) —
+antes solo se cubría genéricamente vía el estado `ENVIADA`. No fue necesario ningún cambio de
+código de producción — la ambigüedad era sobre si esta era la decisión final, no sobre código
+faltante. P3-2 queda cerrada.
+
+## RN-063 — Catálogo de permisos completo para Pedido/Entrega/Factura y su asignación de roles
+
+*(Decisión 2026-09-17, por instrucción explícita del usuario: continuar con P1-4
+(`docs/2026-09-17-tareas.md`) para poder cerrar la brecha de seguridad de
+`PedidosProveedorController`/`EntregasController`/`FacturasController` sin `[Authorize]`. Ver
+ADR-066 para las alternativas consideradas.)*
+
+`06-seguridad.md §9` catalogaba `PEDIDO_VER/CREAR/CONSOLIDAR`, `ENTREGA_VER/REGISTRAR` y
+`FACTURA_VER/REGISTRAR` como "fase futura" (RN-059/ADR-062), pero **no cubría** las acciones de
+transición de estado que ya existen en código desde el cierre documental 2026-09-11 (D-01 a
+D-13): `Enviar`/`Cerrar`/`Cancelar` sobre `PedidoProveedor`, y `Anular` sobre `Entrega`/`Factura`.
+Sin esos permisos catalogados, esas acciones no se podían proteger con `[Authorize]` sin inventar
+código de seguridad sobre la marcha (`CLAUDE.md §67`).
+
+**Catálogo nuevo** (`06-seguridad.md §9`):
+
+```text
+PEDIDO_ENVIAR
+PEDIDO_CERRAR
+PEDIDO_CANCELAR
+
+ENTREGA_ANULAR
+
+FACTURA_ANULAR
+```
+
+**Asignación de roles** — mismo criterio ya usado en RN-060 ("se preserva la asignación ya
+decidida" para el permiso base de la misma entidad, sin inventar un rol nuevo ni un matiz que
+nadie pidió):
+
+- `PEDIDO_ENVIAR`/`PEDIDO_CERRAR`/`PEDIDO_CANCELAR` → mismos roles que `PEDIDO_CREAR`
+  (`COMPRAS`, `ADMINISTRADOR`) — Compras es dueño del ciclo de vida completo de `PedidoProveedor`
+  en la matriz ya decidida (crea, consolida; ahora también envía, cierra y cancela el mismo
+  documento que crea).
+- `ENTREGA_ANULAR` → mismos roles que `ENTREGA_REGISTRAR` (`RECEPCION`, `ADMINISTRADOR`) — quien
+  registra una entrega es quien puede anularla, simetría directa.
+- `FACTURA_ANULAR` → mismos roles que `FACTURA_REGISTRAR` (`COMPRAS`, `ADMINISTRADOR`) — misma
+  simetría registrar/anular que `ENTREGA_ANULAR`.
+
+**Endpoint → permiso → alcance** (extiende `06-seguridad.md §52`, que hoy no cubre ningún
+endpoint de Pedido/Entrega/Factura):
+
+| Endpoint | Permiso |
+| --- | --- |
+| `POST /pedidos-proveedor`, `POST .../detalles`, `POST .../detalles/{id}/distribuciones` | `PEDIDO_CREAR` |
+| `POST /pedidos-proveedor/{id}/enviar` | `PEDIDO_ENVIAR` |
+| `POST /pedidos-proveedor/{id}/cerrar` | `PEDIDO_CERRAR` |
+| `POST /pedidos-proveedor/{id}/cancelar` | `PEDIDO_CANCELAR` |
+| `POST /pedidos-proveedor/{id}/entregas` (crea una `Entrega`, aunque la ruta cuelgue de Pedido) | `ENTREGA_REGISTRAR` |
+| `POST /entregas/{id}/detalles`, `POST .../detalles/{id}/distribuciones` | `ENTREGA_REGISTRAR` |
+| `POST /entregas/{id}/anular` | `ENTREGA_ANULAR` |
+| `POST /facturas`, `POST /facturas/{id}/detalles` | `FACTURA_REGISTRAR` |
+| `POST /facturas/{id}/anular` | `FACTURA_ANULAR` |
+
+**Sin alcance por empresa** en ninguno de estos endpoints — mismo motivo ya documentado en
+`CLAUDE.md §27`: un `PedidoProveedor` puede consolidar necesidades de varias empresas, no
+pertenece a una sola (a diferencia de `Requisicion`).
+
+**Esto es una decisión de negocio cerrada, implementada en el mismo cambio** (a diferencia de
+RN-061/RN-062): agrega `[Authorize]` real a los tres controllers usando este catálogo y este
+mapeo. Ver `docs/2026-09-17-tareas.md` P1.
+
+## RN-064 — Consulta de Consolidación usa el mismo permiso que Pedido
+
+*(Decisión 2026-09-17, incremento "Fase 6-9 en Frontend" —
+`docs/incremento-fase-6-9-frontend-2026-09-17-1028.md`, Ambigüedad 1. Ver ADR-067.)*
+
+Los endpoints de lectura de `Consolidacion` (`GET /api/v1/consolidaciones`,
+`GET /api/v1/consolidaciones/{id}`) usan el permiso `PEDIDO_VER` — no se cataloga un permiso
+`CONSOLIDACION_VER` propio. Consolidación no tiene un ciclo de vida ni una responsabilidad
+distinta de Pedido (es el paso inmediatamente anterior en la misma cadena
+Consolidación→Pedido→Entrega→Factura, siempre operada por el mismo rol `COMPRAS`); crear un
+permiso nuevo repetiría exactamente el criterio ya descartado en RN-059 para
+Categoría/UnidadMedida (agrupar bajo el permiso del módulo relacionado cuando no hay necesidad de
+negocio documentada que exija separarlos). Sin alcance por empresa, mismo motivo que RN-063
+(`CLAUDE.md §27`).
+
+## RN-065 — Distribución de PedidoProveedor debe estar completa antes de enviar
+
+*(Decisión 2026-09-17, incremento "Fase 6-9 en Frontend" —
+`docs/incremento-fase-6-9-frontend-2026-09-17-1028.md`, Ambigüedad 2, confirmada explícitamente
+por el usuario. Ver ADR-068.)*
+
+Un `PedidoProveedor` no puede pasar de `BORRADOR` a `ENVIADO` (`PedidoProveedor.Enviar()`) si la
+suma de `DistribucionPedido` de algún `DetallePedidoProveedor` no es igual a su
+`CantidadPedida` — mismo criterio que `Requisicion.DistribucionCompleta` (RN-011), aplicado ahora
+también a Pedido. No se permite enviar con distribución parcial o sin distribuir.
+
+**Actualización (implementación 2026-09-17, I2-1):** ya implementada —
+`DetallePedidoProveedor.DistribucionCompleta` (mismo criterio que
+`DetalleRequisicion.DistribucionCompleta`) y la guarda correspondiente en
+`PedidoProveedor.Enviar()`. Probado en Domain.Tests
+(`No_permite_enviar_un_pedido_con_distribucion_incompleta`/
+`Permite_enviar_un_pedido_con_distribucion_completa`).
+
 ---
 
 # 15. Reglas todavía pendientes de definición
@@ -1293,7 +1447,7 @@ B. Permitir excepción a un rol autorizado.
 C. Abrir nuevamente la ventana.
 ```
 
-**Estado:** Pendiente de decisión.
+**Estado:** ~~Pendiente~~ **RESUELTA (cierre documental 2026-09-17)** — ver RN-061 (D-14). Se bloquea completamente el envío fuera de ventana, sin excepción, para el alcance actual. Decidida conceptualmente; implementación pendiente de tarea futura (P3-1).
 
 ---
 
@@ -1301,7 +1455,7 @@ C. Abrir nuevamente la ventana.
 
 Debe definirse si una requisición aprobada puede ser modificada y bajo qué condiciones.
 
-**Estado:** Pendiente de decisión.
+**Estado:** ~~Pendiente~~ **RESUELTA (cierre documental 2026-09-17)** — ver RN-062 (D-15). `APROBADA` es inmutable para edición directa, sin excepción. Decidida conceptualmente; implementación pendiente de tarea futura (P3-2).
 
 ---
 
@@ -1501,8 +1655,13 @@ RN-036/RN-037 exigen registrar usuario y fecha en acciones relevantes, pero `Ped
 | D-11 | Trazabilidad de autoría transversal | Trazabilidad | RN-050, ADR-052 | DECISIÓN CERRADA |
 | D-12 | CantidadPedida independiente de CantidadNecesaria | PedidoProveedor | RN-031, RN-042, ADR-045 | DECISIÓN CERRADA |
 | D-13 | Sustitución explícita y trazable | PedidoProveedor/Entrega | RN-045, ADR-048 | DECISIÓN CERRADA (implementación pendiente) |
+| D-14 | Envío fuera de ventana: bloqueo sin excepción | Requisicion | RN-061, ADR-064 | DECISIÓN CERRADA E IMPLEMENTADA (ya existía, verificado 2026-09-17) |
+| D-15 | Requisición APROBADA es inmutable | Requisicion | RN-062, ADR-065 | DECISIÓN CERRADA E IMPLEMENTADA (ya existía, verificado 2026-09-17) |
+| D-16 | Catálogo de permisos Enviar/Cerrar/Cancelar/Anular + asignación de roles | PedidoProveedor/Entrega/Factura | RN-063, ADR-066 | DECISIÓN CERRADA E IMPLEMENTADA |
+| D-17 | Consulta de Consolidación usa PEDIDO_VER, sin permiso propio | Consolidacion | RN-064, ADR-067 | DECISIÓN CERRADA (implementación pendiente) |
+| D-18 | Distribución de Pedido debe estar completa antes de enviar | PedidoProveedor | RN-065, ADR-068 | DECISIÓN CERRADA E IMPLEMENTADA |
 
-Todas las decisiones D-01 a D-13 quedan cerradas a nivel de regla de negocio.
+Todas las decisiones D-01 a D-18 quedan cerradas a nivel de regla de negocio.
 
 > **Actualización (2026-09-11, cierre técnico del flujo PedidoProveedor):** D-01 a D-12 ya están implementadas en código (Domain/Application/Infrastructure/Api), incluyendo `Anular()` para `Entrega`/`Factura` con sus casos de uso y endpoints, con 2 migraciones aplicadas y pruebas (254/254). Ver `progreso.md` para el detalle. Solo D-13 (sustitución de productos) permanece sin implementar, tal como estaba decidido (decisión de negocio cerrada, mecanismo de registro pendiente de una tarea futura).
 
@@ -1511,6 +1670,11 @@ Todas las decisiones D-01 a D-13 quedan cerradas a nivel de regla de negocio.
 - Mecanismo de registro de sustitución de productos (RN-045/D-13) — decidido conceptualmente, sin entidad/caso de uso todavía. **Fuera de alcance mientras D-13 no se implemente explícitamente.**
 - `PedidosProveedorController`/`EntregasController`/`FacturasController`: cada uno implementa únicamente las acciones respaldadas por un caso de uso y una decisión cerrada. No incluyen `GET` (listar/consultar), `PUT`, ni creación de `Entrega` por HTTP (sin caso de uso ni contrato definido todavía).
 - Trazabilidad de autoría real (D-11) — depende de `Usuario`/autenticación (`TASK-008`, `PENDIENTE`). No es una tarea de código pendiente de "conectar": falta el componente `Usuario` en sí. Ver `08-tareas.md`, `TASK-008`.
+- ~~Guarda de ventana de solicitud~~ / ~~Guarda de inmutabilidad de `APROBADA`~~ (RN-061/RN-062,
+  D-14/D-15) — **ya implementadas**, verificado 2026-09-17 (P3-1/P3-2 cerradas sin cambio de
+  código, ver notas de RN-061/RN-062 arriba).
+
+> **Nota (2026-09-17):** la actualización de arriba (línea "Actualización (2026-09-17)" antes de RN-061) también deja constancia de que `PedidosProveedorController`/`EntregasController`/`FacturasController` **ya existen**, pero sin `[Authorize]` — eso es un hueco de seguridad (P1, `docs/2026-09-17-tareas.md`), no una decisión de negocio pendiente.
 
 ---
 

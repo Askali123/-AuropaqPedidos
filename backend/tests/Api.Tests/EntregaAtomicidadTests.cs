@@ -1,4 +1,5 @@
 using System.Net;
+using System.Net.Http.Headers;
 using System.Net.Http.Json;
 using AuropaqPedidos.Application.Entregas;
 using AuropaqPedidos.Application.Entregas.Dtos;
@@ -31,11 +32,21 @@ public sealed class EntregaAtomicidadTests : IClassFixture<ApiWebApplicationFact
         _cliente = factory.CreateClient();
     }
 
+    // Autorización real agregada 2026-09-17 (RN-063/ADR-066): un único token con los permisos
+    // necesarios, autenticado en `_cliente` por defecto — este archivo prueba atomicidad
+    // transaccional, no autorización granular.
     private async Task<EscenarioPedidoProveedor> NuevoEscenarioAsync(int numero, int cantidadNecesaria = 100)
     {
         using var scope = _factory.Services.CreateScope();
         var db = scope.ServiceProvider.GetRequiredService<AuropaqPedidosDbContext>();
-        return await EscenarioPedidoProveedor.CrearAsync(db, numero, cantidadNecesaria);
+        var escenario = await EscenarioPedidoProveedor.CrearAsync(db, numero, cantidadNecesaria);
+
+        var token = await AutorizacionHelper.CrearTokenConPermisosAsync(
+            _factory, db, numero, escenario.EmpresaId,
+            "PEDIDO_CREAR", "PEDIDO_ENVIAR", "ENTREGA_REGISTRAR", "ENTREGA_ANULAR");
+        _cliente.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", token);
+
+        return escenario;
     }
 
     private async Task<(int PedidoId, int DetallePedidoId)> CrearYEnviarPedidoAsync(
@@ -55,10 +66,18 @@ public sealed class EntregaAtomicidadTests : IClassFixture<ApiWebApplicationFact
             cantidadPedida
         });
         var conDetalle = await respuestaDetalle.Content.ReadFromJsonAsync<Envoltorio<PedidoProveedorDto>>();
+        var detalleId = conDetalle!.Data.Detalles[0].Id;
+
+        // RN-065/D-18 (2026-09-17): distribución completa exigida antes de enviar.
+        await _cliente.PostAsJsonAsync($"/api/v1/pedidos-proveedor/{pedido.Data.Id}/detalles/{detalleId}/distribuciones", new
+        {
+            sedeId = escenario.SedeId,
+            cantidad = cantidadPedida
+        });
 
         await _cliente.PostAsync($"/api/v1/pedidos-proveedor/{pedido.Data.Id}/enviar", content: null);
 
-        return (pedido.Data.Id, conDetalle!.Data.Detalles[0].Id);
+        return (pedido.Data.Id, detalleId);
     }
 
     private async Task<int> CrearEntregaAsync(int pedidoId, string numeroRemision)

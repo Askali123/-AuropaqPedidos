@@ -52,7 +52,7 @@ public class AgregarDetalleFacturaUseCaseTests
             Proveedor = new Proveedor(numero, $"Proveedor {numero}");
             Proveedores.Agregar(Proveedor);
 
-            Pedido = new PedidoProveedor(numero, consolidacion, Proveedor, $"PO-{numero}", Fecha);
+            Pedido = new PedidoProveedor(numero, consolidacion, Proveedor, $"PO-{numero}", usuarioCreacionId: 10, Fecha);
             DetallePedido = Pedido.AgregarDetalle(numero, consolidacion.Detalles[0], cantidadPedida);
             Pedidos.Guardar(Pedido);
         }
@@ -62,7 +62,7 @@ public class AgregarDetalleFacturaUseCaseTests
         public AnularFacturaUseCase AnularUseCase() => new(Facturas, NullLogger<AnularFacturaUseCase>.Instance);
 
         public FacturaResponse RegistrarFactura(string numeroFactura = "F-001") =>
-            RegistrarUseCase().Ejecutar(Fecha, new RegistrarFacturaRequest(Proveedor.Id, Pedido.Id, numeroFactura, Impuestos: 19m));
+            RegistrarUseCase().Ejecutar(Fecha, new RegistrarFacturaRequest(Proveedor.Id, Pedido.Id, numeroFactura, Impuestos: 19m), usuarioId: 10);
     }
 
     [Fact]

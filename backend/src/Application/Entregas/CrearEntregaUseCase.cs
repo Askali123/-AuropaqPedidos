@@ -15,8 +15,10 @@ namespace AuropaqPedidos.Application.Entregas;
 // PedidoProveedor.NumeroPedido).
 //
 // TASK-056 (Auditoría, punto 8.1 — 2026-09-15): "registro de entrega" es uno de los 6 ejemplos
-// documentados en 04-base-datos.md §33. usuarioId es nullable — mismo motivo que
-// CrearPedidoProveedorUseCase (este endpoint todavía no exige autenticación real).
+// documentados en 04-base-datos.md §33.
+//
+// usuarioId pasó de opcional a obligatorio el 2026-09-17 (P2-2/P1, docs/2026-09-17-tareas.md) —
+// mismo motivo que CrearPedidoProveedorUseCase.
 public sealed class CrearEntregaUseCase
 {
     private readonly IEntregaRepository _entregas;
@@ -36,7 +38,7 @@ public sealed class CrearEntregaUseCase
         _logger = logger;
     }
 
-    public EntregaResponse Ejecutar(DateTime fechaEntrega, CrearEntregaRequest request, int? usuarioId = null)
+    public EntregaResponse Ejecutar(DateTime fechaEntrega, CrearEntregaRequest request, int usuarioId)
     {
         var pedido = _pedidos.ObtenerPorId(request.PedidoProveedorId)
             ?? throw new RecursoNoEncontradoException("El pedido a proveedor indicado no existe.");
@@ -49,6 +51,7 @@ public sealed class CrearEntregaUseCase
         var entrega = new Entrega(
             id: _ids.Siguiente(),
             pedidoProveedor: pedido,
+            usuarioCreacionId: usuarioId,
             fechaEntrega: fechaEntrega,
             numeroRemision: request.NumeroRemision,
             observacion: request.Observacion);

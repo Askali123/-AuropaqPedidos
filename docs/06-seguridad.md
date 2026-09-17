@@ -263,17 +263,24 @@ REQUISICION_ENVIAR
 REQUISICION_APROBAR
 REQUISICION_DEVOLVER
 
-# Fases posteriores al MVP (documentadas para cuando se aborden — no implementar antes de esas
-# fases, CLAUDE.md §57)
+# Pedido a proveedor (transaccional — sin alcance por empresa, CLAUDE.md §27: un PedidoProveedor
+# puede consolidar necesidades de varias empresas, no pertenece a una sola)
 PEDIDO_VER
 PEDIDO_CREAR
 PEDIDO_CONSOLIDAR
+PEDIDO_ENVIAR      # RN-063/ADR-066 (2026-09-17)
+PEDIDO_CERRAR      # RN-063/ADR-066 (2026-09-17)
+PEDIDO_CANCELAR    # RN-063/ADR-066 (2026-09-17)
 
+# Entrega (transaccional — sin alcance por empresa, mismo motivo que Pedido)
 ENTREGA_VER
 ENTREGA_REGISTRAR
+ENTREGA_ANULAR     # RN-063/ADR-066 (2026-09-17)
 
+# Factura (transaccional — sin alcance por empresa, mismo motivo que Pedido)
 FACTURA_VER
 FACTURA_REGISTRAR
+FACTURA_ANULAR     # RN-063/ADR-066 (2026-09-17)
 ```
 
 Los permisos deben ser independientes de los nombres de personas.
@@ -1340,6 +1347,10 @@ Todas las rutas protegidas deben declarar claramente sus requisitos de autorizac
 > `[Authorize]` (ver `progreso.md`, `## Próxima tarea`, bloque A punto 8) — la implementación
 > (agregar los atributos, sembrar los permisos) sigue pendiente; esto es la decisión de qué debe
 > exigir cada uno, no el código todavía.
+>
+> **Extensión (2026-09-17, RN-063/ADR-066):** se agregan las filas de Pedido/Entrega/Factura, que
+> esta sección no cubría. A diferencia del resto de la tabla, esta extensión **sí se implementó
+> en el mismo cambio** (ver `docs/2026-09-17-tareas.md` P1).
 
 | Endpoint | Permiso | Alcance por empresa |
 | --- | --- | --- |
@@ -1357,6 +1368,25 @@ Todas las rutas protegidas deben declarar claramente sus requisitos de autorizac
 | `POST .../aprobar` | `REQUISICION_APROBAR` | Sí — **ya implementado** (TASK-049/050) |
 | `POST .../iniciar-revision` | `REQUISICION_APROBAR` (reutilizado — mismo actor que aprueba/devuelve; sin permiso propio porque `08-tareas.md` no le asigna un dueño distinto, ver ambigüedad ya reportada sobre esta transición) | Sí |
 | `POST .../devolver` | `REQUISICION_DEVOLVER` | Sí |
+| `POST /pedidos-proveedor`, `POST .../detalles`, `POST .../detalles/{id}/distribuciones` | `PEDIDO_CREAR` | No — RN-063/`CLAUDE.md §27` |
+| `POST /pedidos-proveedor/{id}/enviar` | `PEDIDO_ENVIAR` | No |
+| `POST /pedidos-proveedor/{id}/cerrar` | `PEDIDO_CERRAR` | No |
+| `POST /pedidos-proveedor/{id}/cancelar` | `PEDIDO_CANCELAR` | No |
+| `POST /pedidos-proveedor/{id}/entregas` (crea una `Entrega`, ruta anidada bajo Pedido) | `ENTREGA_REGISTRAR` | No |
+| `POST /entregas/{id}/detalles`, `POST .../detalles/{id}/distribuciones` | `ENTREGA_REGISTRAR` | No |
+| `POST /entregas/{id}/anular` | `ENTREGA_ANULAR` | No |
+| `POST /facturas`, `POST /facturas/{id}/detalles` | `FACTURA_REGISTRAR` | No |
+| `POST /facturas/{id}/anular` | `FACTURA_ANULAR` | No |
+| `GET /consolidaciones`, `GET /consolidaciones/{id}` | `PEDIDO_VER` (RN-064) | No |
+| `GET /pedidos-proveedor`, `GET /pedidos-proveedor/{id}` | `PEDIDO_VER` | No |
+| `GET /pedidos-proveedor/{id}/entregas` (lista las entregas de ese pedido) | `ENTREGA_VER` | No |
+| `GET /entregas/{id}` | `ENTREGA_VER` | No |
+| `GET /facturas` (exige `pedidoProveedorId`), `GET /facturas/{id}` | `FACTURA_VER` | No |
+
+> **Actualización (2026-09-17, I1-1 a I1-4,
+> `docs/incremento-fase-6-9-frontend-2026-09-17-1028.md`):** las 5 filas de `GET` de arriba ya
+> están implementadas — antes de esta fecha, los cuatro controllers documentaban explícitamente
+> "no implementado: GET" (`05-api.md §31-34`) como decisión de minimalismo, no como un hueco.
 
 Esto facilita:
 
@@ -1395,13 +1425,18 @@ Esto facilita:
 | `ORGANIZACION_ADMINISTRAR` | - | - | - | - | ✓ |
 | `SEGURIDAD_VER` | - | - | - | - | ✓ |
 | `SEGURIDAD_ADMINISTRAR` | - | - | - | - | ✓ |
-| `PEDIDO_VER` *(fase futura)* | - | - | ✓ | ✓ | ✓ |
-| `PEDIDO_CREAR` *(fase futura)* | - | - | ✓ | - | ✓ |
-| `PEDIDO_CONSOLIDAR` *(fase futura)* | - | - | ✓ | - | ✓ |
-| `ENTREGA_VER` *(fase futura)* | - | - | ✓ | ✓ | ✓ |
-| `ENTREGA_REGISTRAR` *(fase futura)* | - | - | - | ✓ | ✓ |
-| `FACTURA_VER` *(fase futura)* | - | - | ✓ | - | ✓ |
-| `FACTURA_REGISTRAR` *(fase futura)* | - | - | ✓ | - | ✓ |
+| `PEDIDO_VER` | - | - | ✓ | ✓ | ✓ |
+| `PEDIDO_CREAR` | - | - | ✓ | - | ✓ |
+| `PEDIDO_CONSOLIDAR` | - | - | ✓ | - | ✓ |
+| `PEDIDO_ENVIAR` *(RN-063/ADR-066)* | - | - | ✓ | - | ✓ |
+| `PEDIDO_CERRAR` *(RN-063/ADR-066)* | - | - | ✓ | - | ✓ |
+| `PEDIDO_CANCELAR` *(RN-063/ADR-066)* | - | - | ✓ | - | ✓ |
+| `ENTREGA_VER` | - | - | ✓ | ✓ | ✓ |
+| `ENTREGA_REGISTRAR` | - | - | - | ✓ | ✓ |
+| `ENTREGA_ANULAR` *(RN-063/ADR-066)* | - | - | - | ✓ | ✓ |
+| `FACTURA_VER` | - | - | ✓ | - | ✓ |
+| `FACTURA_REGISTRAR` | - | - | ✓ | - | ✓ |
+| `FACTURA_ANULAR` *(RN-063/ADR-066)* | - | - | ✓ | - | ✓ |
 
 **Nota sobre `Administrador` y alcance por empresa:** la versión conceptual anterior de esta
 tabla mostraba "Ver requisiciones: Amplio" para Administrador (sin restricción de empresa). Se
@@ -1410,10 +1445,11 @@ misma verificación de alcance por empresa que cualquier otro rol para las accio
 Ver RN-060 para la justificación (`CLAUDE.md §45`: las excepciones administrativas deben
 definirse explícitamente, no asumirse).
 
-Las filas marcadas *(fase futura)* corresponden a permisos de Pedido/Entrega/Factura — no se
-implementan `[Authorize]` para ellos todavía porque los endpoints mismos no existen (Fases 7-9,
-posteriores al MVP, `CLAUDE.md §57`). Se documentan aquí para que la asignación de roles quede
-completa desde ya y no haya que rediseñarla cuando se aborden esas fases.
+> **Actualización (2026-09-17, RN-063/ADR-066):** las filas de Pedido/Entrega/Factura ya no están
+> marcadas "fase futura" — los endpoints existen desde las Fases 7-9 (implementadas antes de que
+> esta nota se corrigiera) y `[Authorize]` ya se implementó usando esta matriz. Las tres filas
+> nuevas (`PEDIDO_ENVIAR`/`CERRAR`/`CANCELAR`, `ENTREGA_ANULAR`, `FACTURA_ANULAR`) se agregaron el
+> mismo día para cubrir las acciones de transición de estado que faltaban en el catálogo.
 
 ---
 

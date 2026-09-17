@@ -87,8 +87,12 @@ public static class DependencyInjection
         services.AddScoped<DevolverRequisicionUseCase>();
 
         services.AddScoped<CrearConsolidacionUseCase>();
+        services.AddScoped<ListarConsolidacionesUseCase>();
+        services.AddScoped<ObtenerConsolidacionUseCase>();
 
         services.AddScoped<CrearPedidoProveedorUseCase>();
+        services.AddScoped<ListarPedidosProveedorUseCase>();
+        services.AddScoped<ObtenerPedidoProveedorUseCase>();
         services.AddScoped<AgregarDetallePedidoProveedorUseCase>();
         services.AddScoped<AgregarDistribucionPedidoUseCase>();
         services.AddScoped<EnviarPedidoProveedorUseCase>();
@@ -96,12 +100,16 @@ public static class DependencyInjection
         services.AddScoped<CancelarPedidoProveedorUseCase>();
 
         services.AddScoped<CrearEntregaUseCase>();
+        services.AddScoped<ListarEntregasUseCase>();
+        services.AddScoped<ObtenerEntregaUseCase>();
         services.AddScoped<AgregarDetalleEntregaUseCase>();
         services.AddScoped<AgregarDistribucionEntregaUseCase>();
         services.AddScoped<CalcularCantidadPendienteUseCase>();
         services.AddScoped<AnularEntregaUseCase>();
 
         services.AddScoped<RegistrarFacturaUseCase>();
+        services.AddScoped<ListarFacturasUseCase>();
+        services.AddScoped<ObtenerFacturaUseCase>();
         services.AddScoped<AgregarDetalleFacturaUseCase>();
         services.AddScoped<AnularFacturaUseCase>();
 

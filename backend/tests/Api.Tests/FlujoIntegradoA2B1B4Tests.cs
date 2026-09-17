@@ -68,6 +68,22 @@ public sealed class FlujoIntegradoA2B1B4Tests : IClassFixture<ApiWebApplicationF
             proveedorId = proveedor.Id;
         }
 
+        // Autorización real agregada 2026-09-17 (RN-063/ADR-066): PedidoProveedor/Entrega/Factura
+        // ya exigen JWT (sin alcance por empresa, CLAUDE.md §27) — un único token con todos los
+        // permisos necesarios, puesto como default en `_cliente`, alcanza para todo el tramo
+        // Pedido→Entrega→Factura de este flujo. Los llamados de Requisición siguen usando su
+        // propio token explícito por mensaje (CrearYAprobarRequisicionAsync) — un
+        // HttpRequestMessage con su propio Authorization no se ve afectado por este default.
+        using (var scope = _factory.Services.CreateScope())
+        {
+            var db = scope.ServiceProvider.GetRequiredService<AuropaqPedidosDbContext>();
+            var tokenPedidos = await AutorizacionHelper.CrearTokenConPermisosAsync(
+                _factory, db, 9000, empresa1Id,
+                "PEDIDO_CREAR", "PEDIDO_ENVIAR", "ENTREGA_REGISTRAR", "ENTREGA_ANULAR",
+                "FACTURA_REGISTRAR", "FACTURA_ANULAR");
+            _cliente.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", tokenPedidos);
+        }
+
         // ---- Requisición #1 (Empresa 1), aprobada, 30 unidades ----
         var requisicion1Id = await CrearYAprobarRequisicionAsync(empresa1Id, periodoId, productoId, sede1Id, cantidad: 30);
 
@@ -111,6 +127,13 @@ public sealed class FlujoIntegradoA2B1B4Tests : IClassFixture<ApiWebApplicationF
         });
         var pedidoConDetalle = await respuestaDetallePedido.Content.ReadFromJsonAsync<Envoltorio<PedidoProveedorDto>>();
         var detallePedidoId = pedidoConDetalle!.Data.Detalles[0].Id;
+
+        // RN-065/D-18 (2026-09-17): distribución completa exigida antes de enviar.
+        await _cliente.PostAsJsonAsync($"/api/v1/pedidos-proveedor/{pedido.Data.Id}/detalles/{detallePedidoId}/distribuciones", new
+        {
+            sedeId = sede2Id,
+            cantidad = 20
+        });
 
         await _cliente.PostAsync($"/api/v1/pedidos-proveedor/{pedido.Data.Id}/enviar", content: null);
 

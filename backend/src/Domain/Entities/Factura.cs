@@ -16,12 +16,15 @@ namespace AuropaqPedidos.Domain.Entities;
 // Cierre documental 2026-09-11 (D-05/RN-047): Estado es un enum operativo (REGISTRADA/ANULADA),
 // sin ciclo contable (RN-038) — reemplaza la propuesta de ciclo de vida contable del 2026-09-10
 // (progreso.md, "propuesta de negocio FASE 9"), que quedó explícitamente descartada.
+// UsuarioCreacionId agregado 2026-09-17 (P2-2, docs/2026-09-17-tareas.md) — mismo motivo que
+// PedidoProveedor.UsuarioCreacionId.
 public sealed class Factura
 {
     public int Id { get; }
     public Proveedor Proveedor { get; }
     public PedidoProveedor PedidoProveedor { get; }
     public string NumeroFactura { get; }
+    public int UsuarioCreacionId { get; }
     public DateTime FechaFactura { get; }
     public decimal Impuestos { get; }
     public FacturaEstado Estado { get; private set; }
@@ -46,6 +49,7 @@ public sealed class Factura
         Proveedor proveedor,
         PedidoProveedor pedidoProveedor,
         string numeroFactura,
+        int usuarioCreacionId,
         DateTime fechaFactura,
         decimal impuestos,
         string? observacion = null)
@@ -69,6 +73,7 @@ public sealed class Factura
         Proveedor = proveedor;
         PedidoProveedor = pedidoProveedor;
         NumeroFactura = numeroFactura;
+        UsuarioCreacionId = usuarioCreacionId;
         FechaFactura = fechaFactura;
         Impuestos = impuestos;
         Estado = FacturaEstado.Registrada;

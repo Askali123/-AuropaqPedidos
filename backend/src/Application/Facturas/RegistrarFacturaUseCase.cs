@@ -16,6 +16,9 @@ namespace AuropaqPedidos.Application.Facturas;
 //
 // "Proveedor no activo" se valida aquí (no en Domain), mismo precedente ya usado en
 // CrearPedidoProveedorUseCase: Domain solo exige que el proveedor no sea null.
+//
+// usuarioId agregado 2026-09-17 (P2-2/P1, docs/2026-09-17-tareas.md): el endpoint ya exige JWT
+// real (RN-063/ADR-066), se usa para Factura.UsuarioCreacionId (RN-050/D-11).
 public sealed class RegistrarFacturaUseCase
 {
     private readonly IFacturaRepository _facturas;
@@ -35,7 +38,7 @@ public sealed class RegistrarFacturaUseCase
         _logger = logger;
     }
 
-    public FacturaResponse Ejecutar(DateTime fechaFactura, RegistrarFacturaRequest request)
+    public FacturaResponse Ejecutar(DateTime fechaFactura, RegistrarFacturaRequest request, int usuarioId)
     {
         var proveedor = _proveedores.ObtenerPorId(request.ProveedorId)
             ?? throw new RecursoNoEncontradoException("El proveedor indicado no existe.");
@@ -55,6 +58,7 @@ public sealed class RegistrarFacturaUseCase
             proveedor: proveedor,
             pedidoProveedor: pedido,
             numeroFactura: request.NumeroFactura,
+            usuarioCreacionId: usuarioId,
             fechaFactura: fechaFactura,
             impuestos: request.Impuestos,
             observacion: request.Observacion);

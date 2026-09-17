@@ -46,7 +46,7 @@ public class AnularFacturaUseCaseTests
             var consolidacion = new Consolidacion(1, periodo, usuarioCreacionId: 1, estado: "GENERADA", fechaCreacion: Fecha);
             consolidacion.AgregarAsignacion(1, 1, requisicion, detalleReq, 100);
 
-            Pedido = new PedidoProveedor(1, consolidacion, Proveedor, "PO-001", Fecha);
+            Pedido = new PedidoProveedor(1, consolidacion, Proveedor, "PO-001", usuarioCreacionId: 10, Fecha);
             Pedido.AgregarDetalle(1, consolidacion.Detalles[0], 100);
             Pedidos.Guardar(Pedido);
         }
@@ -56,7 +56,7 @@ public class AnularFacturaUseCaseTests
         public FacturaResponse RegistrarFactura(string numeroFactura = "F-001")
         {
             var registrarUseCase = new RegistrarFacturaUseCase(Facturas, Proveedores, Pedidos, Ids, NullLogger<RegistrarFacturaUseCase>.Instance);
-            return registrarUseCase.Ejecutar(Fecha, new RegistrarFacturaRequest(Proveedor.Id, Pedido.Id, numeroFactura, Impuestos: 19m));
+            return registrarUseCase.Ejecutar(Fecha, new RegistrarFacturaRequest(Proveedor.Id, Pedido.Id, numeroFactura, Impuestos: 19m), usuarioId: 10);
         }
     }
 

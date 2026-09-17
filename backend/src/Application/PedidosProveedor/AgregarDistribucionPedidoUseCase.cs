@@ -7,9 +7,12 @@ using AuropaqPedidos.Domain.Exceptions;
 namespace AuropaqPedidos.Application.PedidosProveedor;
 
 // TASK-041, RN-032: define qué cantidad del detalle del pedido corresponde a cada sede
-// (de cualquier empresa — un PedidoProveedor no pertenece a una sola empresa). No existe una
-// regla documentada equivalente a RN-011 ("suma = cantidad") para pedidos (auditoría
-// 2026-09-10); no se valida aquí para no inventarla.
+// (de cualquier empresa — un PedidoProveedor no pertenece a una sola empresa).
+//
+// RN-065/D-18 (2026-09-17): la regla "suma = cantidad pedida" (equivalente a RN-011 para
+// Requisición) ya está decidida e implementada — pero como guarda en
+// PedidoProveedor.Enviar() (Domain), no aquí: agregar una distribución parcial sigue siendo
+// válido en cualquier momento, solo Enviar() exige que la suma esté completa.
 public sealed class AgregarDistribucionPedidoUseCase
 {
     private readonly IPedidoProveedorRepository _pedidos;

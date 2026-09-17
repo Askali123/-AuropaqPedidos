@@ -8,7 +8,7 @@ namespace Api.Tests;
 // D-01 a D-13). A diferencia de EscenarioFactura, el PedidoProveedor NO se siembra aquí: se crea
 // a través de la Api (POST /api/v1/pedidos-proveedor), porque ya existe controller propio.
 internal sealed record EscenarioPedidoProveedor(
-    int ConsolidacionId, int DetalleConsolidacionId, int ProveedorId, int SedeId, int CantidadNecesaria)
+    int EmpresaId, int ConsolidacionId, int DetalleConsolidacionId, int ProveedorId, int SedeId, int CantidadNecesaria)
 {
     public static async Task<EscenarioPedidoProveedor> CrearAsync(AuropaqPedidosDbContext db, int numero, int cantidadNecesaria = 85)
     {
@@ -52,6 +52,6 @@ internal sealed record EscenarioPedidoProveedor(
 
         await db.SaveChangesAsync();
 
-        return new EscenarioPedidoProveedor(consolidacion.Id, consolidacion.Detalles[0].Id, proveedor.Id, sede.Id, cantidadNecesaria);
+        return new EscenarioPedidoProveedor(empresa.Id, consolidacion.Id, consolidacion.Detalles[0].Id, proveedor.Id, sede.Id, cantidadNecesaria);
     }
 }

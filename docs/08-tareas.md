@@ -451,11 +451,13 @@ Una empresa puede tener múltiples sedes y cada sede pertenece a una sola empres
 
 ### Estado
 
-`EN_DESARROLLO`
+`COMPLETADA`
 
 > **Nota (cierre técnico 2026-09-11):** D-11/RN-050 (`01-reglas-negocio.md §14`, ADR-052) ya decidieron que la trazabilidad de autoría en `PedidoProveedor`/`Entrega`/`Factura` es una preocupación transversal que depende de esta tarea — no se agregan campos de usuario provisionales mientras `TASK-008` siga `PENDIENTE`. Esta tarea es el prerrequisito estructural real que bloquea esa trazabilidad; no hay una solución provisional pendiente de "activar", falta el componente en sí (`Usuario` en Domain + el mecanismo de autenticación de Fase 10).
 >
 > **Actualización (implementación 2026-09-14):** `Usuario` ya existe en Domain/Application/Infrastructure/Api (`Empresa 1 ─── N Usuario`, Correo único GLOBAL, `POST`/`GET /api/v1/usuarios`). Sigue `EN_DESARROLLO`, no `COMPLETADA`: no se agregó trazabilidad de autoría a `PedidoProveedor`/`Entrega`/`Factura` (sigue bloqueada por D-11 hasta que exista autenticación real, Fase 10/TASK-048) ni `UsuarioSede`/`Rol`/`Permiso` (TASK-009 a 013).
+>
+> **Actualización (2026-09-17, P2-2):** `UsuarioSede`/`Rol`/`Permiso` (TASK-009 a 013) y la autorización real de este endpoint (`SEGURIDAD_VER/ADMINISTRAR`) ya estaban `COMPLETADA`/implementadas desde el 2026-09-15 — esta nota había quedado desactualizada en ese punto. El único motivo que quedaba para no cerrar `TASK-008` era la trazabilidad de autoría en `PedidoProveedor`/`Entrega`/`Factura` (D-11/RN-050): **ya se implementó** — `UsuarioCreacionId` agregado a las tres entidades (Domain + EF Core), migración `AgregarUsuarioCreacionIdAPedidoEntregaFactura` aplicada, tomado del JWT (`sub`) en los tres controllers. Sin motivo restante para mantener `TASK-008` en `EN_DESARROLLO` — pasa a `COMPLETADA`.
 
 ### Objetivo
 
@@ -1204,6 +1206,35 @@ Esta fase no debe comenzar hasta que el flujo de requisiciones y revisión esté
 
 ## TASK-036 — Crear consolidación
 
+### Estado
+
+`EN_DESARROLLO`
+
+> **Actualización (sincronización 2026-09-17, `docs/2026-09-17-tareas.md` P2-3):** `Consolidacion`
+> existe como agregado raíz completo (Domain/Application/Infrastructure), con
+> `CrearConsolidacionUseCase` y migración aplicada. **No tiene `ConsolidacionesController` — sin
+> API HTTP**, solo invocable por inyección de dependencias (usada así en los fixtures de
+> `Api.Tests`, ver `EscenarioPedidoProveedor`/`EscenarioFactura`). Tabla `Consolidaciones` vacía en
+> la base de datos de desarrollo. Ver P2-1 (`docs/2026-09-17-tareas.md`).
+
+> **Actualización (implementación 2026-09-17, P2-1):** `ConsolidacionesController` ya existe —
+> `POST /api/v1/consolidaciones` con `[Authorize(Policy="Permiso:PEDIDO_CONSOLIDAR")]`, sin
+> alcance por empresa (`CLAUDE.md §27`). Sigue `EN_DESARROLLO`, no `COMPLETADA`: sin `GET`
+> (listar/consultar) ni `{id}/generar` (sin caso de uso que los respalde, mismo criterio de
+> minimalismo que `FacturasController`). Probado en `ConsolidacionesFlujoTests` (4 pruebas: crear,
+> 404 periodo inexistente, 401 sin JWT, 403 sin permiso).
+
+> **Actualización (implementación 2026-09-17, `docs/incremento-fase-6-9-frontend-2026-09-17-1028.md`
+> I1-1/I3-1):** ya tiene `GET /api/v1/consolidaciones` (con `periodoId` opcional) y
+> `GET /api/v1/consolidaciones/{id}` (reutilizan `PEDIDO_VER`, RN-064/ADR-067), y una pantalla real
+> en el Frontend (`ConsolidacionPage.tsx`, enlazada en el menú) — selector de periodo, botón
+> "Generar consolidación" y detalle con productos/asignaciones. Verificado end-to-end en
+> navegador. Sigue `EN_DESARROLLO` por el resto de huecos ya documentados arriba.
+
+> **Actualización (I4-1, `docs/incremento-fase-6-9-frontend-2026-09-17-1028.md`):** los dos `GET`
+> de arriba ya tienen guardia de regresión 401 (sin JWT) y 403 (JWT sin `PEDIDO_VER`), en
+> `ConsolidacionesFlujoTests`.
+
 ### Objetivo
 
 Crear una consolidación a partir de requisiciones aprobadas.
@@ -1217,6 +1248,13 @@ No modifica las requisiciones originales.
 ---
 
 # TASK-037 — Generar detalles de consolidación
+
+### Estado
+
+`EN_DESARROLLO`
+
+> **Actualización (sincronización 2026-09-17):** `Consolidacion.AgregarAsignacion` agrupa
+> cantidades por producto en Domain. Sin API propia — depende de `TASK-036` (P2-1).
 
 ### Objetivo
 
@@ -1236,6 +1274,14 @@ Producto X → 85
 ---
 
 # TASK-038 — Mantener trazabilidad de consolidación
+
+### Estado
+
+`EN_DESARROLLO`
+
+> **Actualización (sincronización 2026-09-17):** `AsignacionConsolidacion` referencia el
+> `DetalleRequisicion` de origen sin modificarlo — trazabilidad implementada en Domain. Sin API
+> propia — depende de `TASK-036` (P2-1).
 
 ### Objetivo
 
@@ -1263,6 +1309,27 @@ Empresa / Sede
 
 ## TASK-039 — Crear pedido proveedor
 
+### Estado
+
+`EN_DESARROLLO`
+
+> **Actualización (sincronización 2026-09-17):** `PedidoProveedor` (Domain) +
+> `CrearPedidoProveedorUseCase` (Application) implementados; `PedidosProveedorController` existe
+> con `POST /api/v1/pedidos-proveedor`. **Sin `[Authorize]` — hoy alcanzable sin JWT** (P1-1,
+> `docs/2026-09-17-tareas.md`).
+
+> **Actualización (implementación 2026-09-17, `docs/incremento-fase-6-9-frontend-2026-09-17-1028.md`
+> I1-2/I3-2):** ya exige JWT + permiso real (ver bloque de autorización más abajo en el historial
+> de `progreso.md`), tiene `GET /api/v1/pedidos-proveedor` (con `consolidacionId` opcional) y
+> `GET /api/v1/pedidos-proveedor/{id}`, y una pantalla real en el Frontend
+> (`PedidosProveedorPage.tsx`) — crear pedido desde una consolidación, agregar detalle/
+> distribución (`SelectorSedeGlobal`), enviar/cerrar/cancelar. Verificado end-to-end en navegador,
+> incluyendo la guarda RN-065 (I2-1) al enviar.
+
+> **Actualización (I4-1, `docs/incremento-fase-6-9-frontend-2026-09-17-1028.md`):** los dos `GET`
+> de arriba ya tienen guardia de regresión 401 (sin JWT) y 403 (JWT sin `PEDIDO_VER`), en
+> `AutorizacionPedidosEntregasFacturasFlujoTests`.
+
 ### Objetivo
 
 Crear un pedido asociado a un proveedor.
@@ -1274,6 +1341,14 @@ Una consolidación puede generar múltiples pedidos.
 ---
 
 # TASK-040 — Agregar productos al pedido
+
+### Estado
+
+`EN_DESARROLLO`
+
+> **Actualización (sincronización 2026-09-17):** `PedidoProveedor.AgregarDetalle` +
+> `AgregarDetallePedidoProveedorUseCase` implementados, expuestos en
+> `POST /pedidos-proveedor/{id}/detalles`. Mismo hueco de autorización que `TASK-039` (P1-1).
 
 ### Objetivo
 
@@ -1291,6 +1366,19 @@ La cantidad pedida puede ser diferente de la necesidad consolidada.
 ---
 
 # TASK-041 — Distribuir pedido entre sedes
+
+### Estado
+
+`EN_DESARROLLO`
+
+> **Actualización (sincronización 2026-09-17):** `AgregarDistribucion`/`DistribucionPedido`
+> implementados, expuestos en `POST /pedidos-proveedor/{id}/detalles/{detalleId}/distribuciones`.
+>
+> **Actualización (implementación 2026-09-17, I2-1, RN-065/D-18):** la regla "SUMA de
+> distribuciones = cantidad pedida" ya está decidida e implementada — mismo criterio que
+> `Requisicion` (RN-011), como guarda en `PedidoProveedor.Enviar()`
+> (`DetallePedidoProveedor.DistribucionCompleta`), no en este endpoint (agregar una distribución
+> parcial sigue siendo válido; solo enviar exige que esté completa).
 
 ### Objetivo
 
@@ -1322,6 +1410,25 @@ La distribución debe mantener coherencia con la cantidad pedida.
 
 ## TASK-042 — Registrar entrega
 
+### Estado
+
+`EN_DESARROLLO`
+
+> **Actualización (sincronización 2026-09-17):** `Entrega` (Domain) + `CrearEntregaUseCase`
+> implementados; `EntregasController` existe. **Sin `[Authorize]` — hoy alcanzable sin JWT** (P1-2,
+> `docs/2026-09-17-tareas.md`).
+
+> **Actualización (implementación 2026-09-17, `docs/incremento-fase-6-9-frontend-2026-09-17-1028.md`
+> I1-3/I3-3):** ya exige JWT + permiso real, tiene `GET /api/v1/pedidos-proveedor/{id}/entregas`
+> (listar) y `GET /api/v1/entregas/{id}`, y una pantalla real en el Frontend (`EntregasPage.tsx`)
+> — registrar entrega contra un pedido Enviado/ParcialmenteEntregado, agregar detalle/
+> distribución (con fotografía histórica de sede, RN-035/ADR-019), anular. Verificado end-to-end
+> en navegador, incluyendo la transición automática del pedido a `ParcialmenteEntregado`.
+
+> **Actualización (I4-1, `docs/incremento-fase-6-9-frontend-2026-09-17-1028.md`):** los dos `GET`
+> de arriba ya tienen guardia de regresión 401 (sin JWT) y 403 (JWT sin `ENTREGA_VER`), en
+> `AutorizacionPedidosEntregasFacturasFlujoTests`.
+
 ### Objetivo
 
 Registrar una entrega asociada a un pedido.
@@ -1333,6 +1440,13 @@ Un pedido puede tener múltiples entregas.
 ---
 
 # TASK-043 — Registrar cantidades entregadas
+
+### Estado
+
+`EN_DESARROLLO`
+
+> **Actualización (sincronización 2026-09-17):** valida que la cantidad entregada acumulada no
+> supere `CantidadPedida`. Mismo hueco de autorización que `TASK-042` (P1-2).
 
 ### Objetivo
 
@@ -1355,6 +1469,14 @@ Entrega 2:
 
 # TASK-044 — Distribuir entrega por sede
 
+### Estado
+
+`EN_DESARROLLO`
+
+> **Actualización (sincronización 2026-09-17):** `DistribucionEntrega` congela una fotografía
+> histórica de `Sede` al registrar (RN-035/ADR-019). Mismo hueco de autorización que `TASK-042`
+> (P1-2).
+
 ### Objetivo
 
 Registrar qué sede recibió cada cantidad.
@@ -1366,6 +1488,13 @@ Debe conservarse la información histórica necesaria del destino.
 ---
 
 # TASK-045 — Calcular cantidades pendientes
+
+### Estado
+
+`EN_DESARROLLO`
+
+> **Actualización (sincronización 2026-09-17):** `CalcularCantidadPendienteUseCase` implementado
+> como cálculo derivado (no persistido). Mismo hueco de autorización que `TASK-042` (P1-2).
 
 ### Objetivo
 
@@ -1388,7 +1517,25 @@ Cantidad entregada acumulada
 
 ### Estado
 
-`PENDIENTE`
+`EN_DESARROLLO`
+
+> **Actualización (sincronización 2026-09-17):** implementado — `Factura` 1:N `DetalleFactura`,
+> enum `FacturaEstado` (`REGISTRADA`/`ANULADA`), unicidad de `NumeroFactura` por proveedor;
+> `FacturasController` existe. **Sin `[Authorize]` — hoy alcanzable sin JWT** (P1-3,
+> `docs/2026-09-17-tareas.md`). El frontend ya tiene una pantalla provisional (`FacturacionPage.tsx`,
+> con IDs de Proveedor/Pedido ingresados a mano) enlazada en el menú principal.
+
+> **Actualización (implementación 2026-09-17, `docs/incremento-fase-6-9-frontend-2026-09-17-1028.md`
+> I1-4/I3-4):** ya exige JWT + permiso real, tiene `GET /api/v1/facturas` (exige
+> `pedidoProveedorId`) y `GET /api/v1/facturas/{id}`. La pantalla provisional mencionada arriba
+> fue **reescrita** (`FacturacionPage.tsx`) para usar selección real (pedido desde `GET`,
+> proveedor derivado automáticamente del pedido, RN-039/D-06) en vez de IDs a mano. Verificado
+> end-to-end en navegador: crear, agregar línea (subtotal/impuestos/total calculados por el
+> backend), anular.
+
+> **Actualización (I4-1, `docs/incremento-fase-6-9-frontend-2026-09-17-1028.md`):** los dos `GET`
+> de arriba ya tienen guardia de regresión 401 (sin JWT) y 403 (JWT sin `FACTURA_VER`), en
+> `AutorizacionPedidosEntregasFacturasFlujoTests`.
 
 ### Objetivo
 
@@ -1396,7 +1543,9 @@ Registrar información de factura del proveedor.
 
 ### Nota
 
-*(Actualizada — cierre documental 2026-09-11.)* La cardinalidad `PedidoProveedor 1 ─── N Factura` ya quedó confirmada para el alcance actual (RN-039/RN-047, ADR-042, D-06/D-05 en `01-reglas-negocio.md §15`). Lo que sigue sin implementar es el enum de `Estado` (`REGISTRADA`/`ANULADA`, RN-047) y las restricciones de unicidad de `NumeroFactura` (RN-049).
+*(Actualizada — cierre documental 2026-09-11.)* La cardinalidad `PedidoProveedor 1 ─── N Factura` ya quedó confirmada para el alcance actual (RN-039/RN-047, ADR-042, D-06/D-05 en `01-reglas-negocio.md §15`).
+
+*(Actualizada — sincronización 2026-09-17.)* El enum de `Estado` (`REGISTRADA`/`ANULADA`, RN-047) y las restricciones de unicidad de `NumeroFactura` (RN-049) que esta nota marcaba como pendientes **ya están implementados** — ver la actualización de estado arriba.
 
 ---
 
@@ -1404,7 +1553,13 @@ Registrar información de factura del proveedor.
 
 ### Estado
 
-`PENDIENTE`
+`EN_DESARROLLO`
+
+> **Actualización (sincronización 2026-09-17):** implementado — `PedidoProveedor.Cerrar()`
+> (transición `ENTREGADO → CERRADO`, RN-044/D-08) expuesto en
+> `POST /pedidos-proveedor/{id}/cerrar`. La nota de abajo ("falta implementar...") quedó obsoleta.
+> **Sin `[Authorize]` — hoy alcanzable sin JWT** (P1-1, `docs/2026-09-17-tareas.md`, mismo
+> controller que `TASK-039`).
 
 ### Objetivo
 
@@ -1421,7 +1576,7 @@ Acción explícita de un usuario autorizado
 
 > **Actualización (cierre documental 2026-09-11):** la condición "Factura registrada" que aparecía aquí como posible requisito de cierre queda **descartada** — RN-044/RN-040 confirman que Entrega y Factura son independientes y que la existencia o ausencia de `Factura` no bloquea el cierre operativo del pedido.
 
-Falta implementar: el caso de uso de cierre en Application y la transición de `Estado` en Domain (hoy `PedidoProveedor.Estado` sigue siendo texto libre, sin el enum de RN-043).
+*(Obsoleta — sincronización 2026-09-17: el caso de uso de cierre y la transición de `Estado` ya están implementados, ver la actualización de estado arriba.)*
 
 ---
 

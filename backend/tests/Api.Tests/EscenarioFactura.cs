@@ -7,7 +7,8 @@ namespace Api.Tests;
 // (con un DetallePedidoProveedor) + Proveedor, necesario para probar Factura por HTTP: TASK-046
 // se apoya en PedidoProveedor, que todavía no tiene API propia (05-api.md §32, conceptual) — se
 // siembra directamente en la base de datos, igual que Escenario.CrearAsync.
-internal sealed record EscenarioFactura(int ProveedorId, int OtroProveedorId, int PedidoProveedorId, int DetallePedidoProveedorId, int CantidadPedida)
+internal sealed record EscenarioFactura(
+    int EmpresaId, int ProveedorId, int OtroProveedorId, int PedidoProveedorId, int DetallePedidoProveedorId, int CantidadPedida)
 {
     public static async Task<EscenarioFactura> CrearAsync(AuropaqPedidosDbContext db, int numero, int cantidadPedida)
     {
@@ -39,7 +40,7 @@ internal sealed record EscenarioFactura(int ProveedorId, int OtroProveedorId, in
         // coherencia proveedor↔pedido.
         var otroProveedor = new Proveedor(numero + 500, $"Otro proveedor {numero}");
 
-        var pedido = new PedidoProveedor(numero, consolidacion, proveedor, $"PO-{numero}", fecha);
+        var pedido = new PedidoProveedor(numero, consolidacion, proveedor, $"PO-{numero}", usuarioCreacionId: 1, fecha);
         var detallePedido = pedido.AgregarDetalle(numero, consolidacion.Detalles[0], cantidadPedida);
 
         db.Empresas.Add(empresa);
@@ -56,6 +57,6 @@ internal sealed record EscenarioFactura(int ProveedorId, int OtroProveedorId, in
 
         await db.SaveChangesAsync();
 
-        return new EscenarioFactura(proveedor.Id, otroProveedor.Id, pedido.Id, detallePedido.Id, cantidadPedida);
+        return new EscenarioFactura(empresa.Id, proveedor.Id, otroProveedor.Id, pedido.Id, detallePedido.Id, cantidadPedida);
     }
 }

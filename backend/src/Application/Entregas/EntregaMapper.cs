@@ -10,6 +10,7 @@ internal static class EntregaMapper
     public static EntregaResponse AResponse(Entrega entrega) => new(
         Id: entrega.Id,
         PedidoProveedorId: entrega.PedidoProveedor.Id,
+        UsuarioCreacionId: entrega.UsuarioCreacionId,
         FechaEntrega: entrega.FechaEntrega,
         NumeroRemision: entrega.NumeroRemision,
         Estado: entrega.Estado.ToString(),

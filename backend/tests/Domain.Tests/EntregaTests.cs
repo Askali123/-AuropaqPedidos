@@ -35,8 +35,10 @@ public class EntregaTests
         consolidacion.AgregarAsignacion(1, 1, requisicion, detalleReq, cantidadNecesaria);
 
         var proveedor = new Proveedor(1, "Proveedor Uno");
-        var pedido = new PedidoProveedor(1, consolidacion, proveedor, "PO-001", Fecha);
+        var pedido = new PedidoProveedor(1, consolidacion, proveedor, "PO-001", usuarioCreacionId: 10, Fecha);
         var detallePedido = pedido.AgregarDetalle(1, consolidacion.Detalles[0], cantidadPedida);
+        // RN-065/D-18 (2026-09-17): distribución completa exigida antes de enviar.
+        pedido.AgregarDistribucion(3, detallePedido, sedeOrigen, cantidadPedida);
         // D-04/RN-046: una entrega solo puede registrarse contra un pedido ENVIADO o
         // PARCIALMENTE_ENTREGADO.
         pedido.Enviar();
@@ -45,7 +47,7 @@ public class EntregaTests
     }
 
     private static Entrega CrearEntrega(PedidoProveedor pedido) =>
-        new(1, pedido, Fecha, "REM-001");
+        new(1, pedido, usuarioCreacionId: 10, Fecha, "REM-001");
 
     [Fact]
     public void Crea_una_entrega_valida_para_un_pedido()
@@ -65,7 +67,7 @@ public class EntregaTests
         var (pedido, _) = CrearPedidoConUnDetalle(CrearProducto(1, "Papel higiénico"), 85, 100);
 
         Assert.Throws<ReglaDeNegocioException>(() =>
-            new Entrega(1, pedido, Fecha, numeroRemision: ""));
+            new Entrega(1, pedido, usuarioCreacionId: 10, Fecha, numeroRemision: ""));
     }
 
     [Fact]
@@ -186,10 +188,10 @@ public class EntregaTests
 
         var proveedor = new Proveedor(1, "Proveedor Uno");
         // A diferencia de CrearPedidoConUnDetalle, este pedido se deja en BORRADOR (sin Enviar()).
-        var pedidoEnBorrador = new PedidoProveedor(1, consolidacion, proveedor, "PO-001", Fecha);
+        var pedidoEnBorrador = new PedidoProveedor(1, consolidacion, proveedor, "PO-001", usuarioCreacionId: 10, Fecha);
         pedidoEnBorrador.AgregarDetalle(1, consolidacion.Detalles[0], 100);
 
-        Assert.Throws<ReglaDeNegocioException>(() => new Entrega(1, pedidoEnBorrador, Fecha, "REM-001"));
+        Assert.Throws<ReglaDeNegocioException>(() => new Entrega(1, pedidoEnBorrador, usuarioCreacionId: 10, Fecha, "REM-001"));
     }
 
     [Fact]
@@ -232,7 +234,7 @@ public class EntregaTests
         var (pedido, _) = CrearPedidoConUnDetalle(CrearProducto(1, "Papel higiénico"), 85, 100);
         pedido.Cancelar();
 
-        Assert.Throws<ReglaDeNegocioException>(() => new Entrega(1, pedido, Fecha, "REM-001"));
+        Assert.Throws<ReglaDeNegocioException>(() => new Entrega(1, pedido, usuarioCreacionId: 10, Fecha, "REM-001"));
     }
 
     [Fact]

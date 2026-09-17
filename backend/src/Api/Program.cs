@@ -64,6 +64,16 @@ builder.Services.AddAuthorization(options =>
 {
     options.AddPolicy("AlcanceRequisicion", policy =>
         policy.RequireAuthenticatedUser().AddRequirements(new AlcanceRequisicionRequirement()));
+
+    // P1-5 (docs/2026-09-17-tareas.md): seguridad por defecto (CLAUDE.md §67 — ante duda,
+    // denegar). Cualquier endpoint nuevo que se agregue sin [Authorize] ni [AllowAnonymous]
+    // explícito queda protegido automáticamente (exige JWT válido) en vez de quedar alcanzable
+    // sin autenticación por omisión — el mismo hueco que tuvieron Pedido/Entrega/Factura hasta
+    // el 2026-09-17 (P1, RN-063/ADR-066). Los endpoints que sí deben ser públicos (hoy solo
+    // AuthController.Login) necesitan [AllowAnonymous] explícito.
+    options.FallbackPolicy = new AuthorizationPolicyBuilder()
+        .RequireAuthenticatedUser()
+        .Build();
 });
 
 // Incremento MVP frontend ↔ backend: el frontend de desarrollo (Vite, http://localhost:5173)
