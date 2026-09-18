@@ -1,14 +1,15 @@
-import { useState } from "react";
+import { Fragment, useState } from "react";
 import { ErrorBanner } from "../ErrorBanner";
+import { ProductosDeProveedorPanel } from "./ProductosDeProveedorPanel";
 import { useConsultaLista } from "../../hooks/useConsultaLista";
 import { ApiRequestError } from "../../services/apiClient";
 import { catalogosService } from "../../services/catalogosService";
 import type { Proveedor } from "../../types/catalogos";
 
 // docs/05-api.md §29. Mismo patrón que CategoriasSeccion/UnidadesMedidaSeccion: lista + alta +
-// edición en línea. Sin DELETE: no existe en el backend. "Productos de este proveedor"
-// (§30, ListarProductos) queda fuera de esta pantalla — es la relación Producto-Proveedor
-// (TASK-019), un concepto de homologación distinto al alta de Proveedor pedida aquí.
+// edición en línea. Sin DELETE: no existe en el backend. "Productos de este proveedor" (§30,
+// ListarProductos, TASK-019) se agregó como panel expandible de solo lectura
+// (ProductosDeProveedorPanel) — la asociación en sí se crea desde ProductosSeccion, no aquí.
 export function ProveedoresSeccion() {
   const [version, setVersion] = useState(0);
   const proveedores = useConsultaLista(() => catalogosService.listarProveedores(), [version]);
@@ -23,6 +24,7 @@ export function ProveedoresSeccion() {
   const [errorCrear, setErrorCrear] = useState<ApiRequestError | null>(null);
 
   const [editandoId, setEditandoId] = useState<number | null>(null);
+  const [expandidoId, setExpandidoId] = useState<number | null>(null);
 
   async function crearProveedor(evento: React.FormEvent) {
     evento.preventDefault();
@@ -148,38 +150,55 @@ export function ProveedoresSeccion() {
               </tr>
             </thead>
             <tbody>
-              {proveedores.datos.map((proveedor) =>
-                editandoId === proveedor.id ? (
-                  <FilaEdicion
-                    key={proveedor.id}
-                    proveedor={proveedor}
-                    onCancelar={() => setEditandoId(null)}
-                    onGuardado={() => {
-                      setEditandoId(null);
-                      setVersion((v) => v + 1);
-                    }}
-                  />
-                ) : (
-                  <tr key={proveedor.id} className="border-b border-slate-100">
-                    <td className="px-4 py-2 text-slate-900">{proveedor.id}</td>
-                    <td className="px-4 py-2 text-slate-900">{proveedor.nombre}</td>
-                    <td className="px-4 py-2 text-slate-900">{proveedor.nit ?? "—"}</td>
-                    <td className="px-4 py-2 text-slate-900">{proveedor.contacto ?? "—"}</td>
-                    <td className="px-4 py-2 text-slate-900">{proveedor.telefono ?? "—"}</td>
-                    <td className="px-4 py-2 text-slate-900">{proveedor.correo ?? "—"}</td>
-                    <td className="px-4 py-2 text-slate-900">{proveedor.activo ? "Sí" : "No"}</td>
-                    <td className="px-4 py-2">
-                      <button
-                        type="button"
-                        onClick={() => setEditandoId(proveedor.id)}
-                        className="text-xs font-medium text-blue-600 underline hover:text-blue-800"
-                      >
-                        Editar
-                      </button>
-                    </td>
-                  </tr>
-                ),
-              )}
+              {proveedores.datos.map((proveedor) => (
+                <Fragment key={proveedor.id}>
+                  {editandoId === proveedor.id ? (
+                    <FilaEdicion
+                      proveedor={proveedor}
+                      onCancelar={() => setEditandoId(null)}
+                      onGuardado={() => {
+                        setEditandoId(null);
+                        setVersion((v) => v + 1);
+                      }}
+                    />
+                  ) : (
+                    <tr className="border-b border-slate-100">
+                      <td className="px-4 py-2 text-slate-900">{proveedor.id}</td>
+                      <td className="px-4 py-2 text-slate-900">{proveedor.nombre}</td>
+                      <td className="px-4 py-2 text-slate-900">{proveedor.nit ?? "—"}</td>
+                      <td className="px-4 py-2 text-slate-900">{proveedor.contacto ?? "—"}</td>
+                      <td className="px-4 py-2 text-slate-900">{proveedor.telefono ?? "—"}</td>
+                      <td className="px-4 py-2 text-slate-900">{proveedor.correo ?? "—"}</td>
+                      <td className="px-4 py-2 text-slate-900">{proveedor.activo ? "Sí" : "No"}</td>
+                      <td className="px-4 py-2">
+                        <div className="flex items-center gap-3">
+                          <button
+                            type="button"
+                            onClick={() => setEditandoId(proveedor.id)}
+                            className="text-xs font-medium text-blue-600 underline hover:text-blue-800"
+                          >
+                            Editar
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => setExpandidoId(expandidoId === proveedor.id ? null : proveedor.id)}
+                            className="text-xs font-medium text-blue-600 underline hover:text-blue-800"
+                          >
+                            {expandidoId === proveedor.id ? "Ocultar productos" : "Ver productos"}
+                          </button>
+                        </div>
+                      </td>
+                    </tr>
+                  )}
+                  {expandidoId === proveedor.id && (
+                    <tr>
+                      <td colSpan={8} className="bg-slate-50 px-4 py-3">
+                        <ProductosDeProveedorPanel proveedorId={proveedor.id} />
+                      </td>
+                    </tr>
+                  )}
+                </Fragment>
+              ))}
               {proveedores.datos.length === 0 && (
                 <tr>
                   <td colSpan={8} className="px-4 py-3 text-sm text-slate-500">

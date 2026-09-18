@@ -1,3 +1,4 @@
+using System.IdentityModel.Tokens.Jwt;
 using AuropaqPedidos.Api.Common;
 using AuropaqPedidos.Application.Organizacion;
 using AuropaqPedidos.Application.Organizacion.Dtos;
@@ -15,10 +16,12 @@ namespace AuropaqPedidos.Api.Controllers;
 public sealed class AuthController : ControllerBase
 {
     private readonly LoginUseCase _login;
+    private readonly ObtenerMisPermisosUseCase _misPermisos;
 
-    public AuthController(LoginUseCase login)
+    public AuthController(LoginUseCase login, ObtenerMisPermisosUseCase misPermisos)
     {
         _login = login;
+        _misPermisos = misPermisos;
     }
 
     // [AllowAnonymous] agregado 2026-09-17 (P1-5, docs/2026-09-17-tareas.md): necesario desde que
@@ -31,4 +34,20 @@ public sealed class AuthController : ControllerBase
         var resultado = _login.Ejecutar(request, DateTime.UtcNow);
         return Ok(ApiResponse<LoginResponse>.De(resultado));
     }
+
+    // TASK-101 (docs/2026-09-18-auditoria-dominio-roles-frontend.md, Decisión A). Autoconsulta:
+    // solo exige estar autenticado (sin política de permiso específico) — es la única forma de
+    // que el propio usuario sepa qué puede hacer sin depender de SEGURIDAD_VER (que un
+    // Solicitante no tiene). Vive en AuthController, no en UsuariosController, porque representa
+    // "mi sesión", igual que /login — no un recurso administrado sobre otro usuario.
+    [Authorize]
+    [HttpGet("mis-permisos")]
+    public ActionResult<ApiResponse<IReadOnlyList<PermisoResponse>>> MisPermisos()
+    {
+        var resultado = _misPermisos.Ejecutar(ObtenerUsuarioIdAutenticado());
+        return Ok(ApiResponse<IReadOnlyList<PermisoResponse>>.De(resultado));
+    }
+
+    private int ObtenerUsuarioIdAutenticado() =>
+        int.Parse(User.FindFirst(JwtRegisteredClaimNames.Sub)!.Value);
 }

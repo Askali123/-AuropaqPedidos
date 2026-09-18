@@ -171,3 +171,35 @@ export interface CrearPeriodoRequest {
   fechaInicioSolicitud: string;
   fechaFinSolicitud: string;
 }
+
+// docs/05-api.md §30 (TASK-019). Relación Producto ↔ Proveedor: permite que un producto interno
+// tenga un identificador/descripción distintos según el proveedor (CLAUDE.md §23) — no se
+// confunde con Producto ni con Proveedor por separado.
+export interface ProductoProveedor {
+  id: number;
+  productoId: number;
+  productoNombre: string;
+  proveedorId: number;
+  proveedorNombre: string;
+  codigoProveedor: string;
+  descripcionProveedor: string | null;
+  categoriaProveedor: string | null;
+  unidadProveedor: string | null;
+  activo: boolean;
+}
+
+export interface CrearProductoProveedorRequest {
+  proveedorId: number;
+  codigoProveedor: string;
+  descripcionProveedor?: string | null;
+  categoriaProveedor?: string | null;
+  unidadProveedor?: string | null;
+}
+
+export interface ActualizarProductoProveedorRequest {
+  codigoProveedor: string;
+  descripcionProveedor: string | null;
+  categoriaProveedor: string | null;
+  unidadProveedor: string | null;
+  activo: boolean;
+}

@@ -15,9 +15,6 @@ import type { Requisicion } from "../types/requisicion";
 // Empresa y Usuario ya no se ingresan a mano, se derivan del JWT (useAuth). El backend también
 // dejó de aceptar X-Usuario-Id/X-Empresa-Id en este Controller (punto 8, 2026-09-15) — enviarlos
 // ya no tendría ningún efecto.
-//
-// Todavía NO implementa (mismo alcance que la etapa anterior): consolidación, necesidad de
-// compra, pedido a proveedor, ni ninguna funcionalidad posterior.
 export function RequisicionesPage() {
   const { usuario } = useAuth();
   const [periodoId, setPeriodoId] = useState<number | null>(null);
@@ -136,17 +133,10 @@ export function RequisicionesPage() {
           <section className="mt-6 rounded-lg border border-slate-200 bg-white p-5">
             <h2 className="text-base font-semibold text-slate-800">Siguiente etapa</h2>
             <p className="mt-1 text-xs text-slate-500">
-              Consolidación, necesidad de compra y pedido a proveedor son etapas posteriores, no
-              implementadas todavía en esta pantalla.
+              Una vez enviada y aprobada, esta requisición se incluye en la siguiente
+              consolidación del periodo — ver "Revisión" (aprobar/devolver) y luego
+              "Consolidación", "Pedidos a proveedor", "Entregas" y "Facturación" en el menú.
             </p>
-            <button
-              type="button"
-              disabled
-              title="Próxima etapa: consolidación (no implementado todavía)"
-              className="mt-4 cursor-not-allowed rounded bg-slate-300 px-4 py-2 text-sm font-medium text-slate-600"
-            >
-              Continuar (próxima etapa)
-            </button>
           </section>
         </>
       )}

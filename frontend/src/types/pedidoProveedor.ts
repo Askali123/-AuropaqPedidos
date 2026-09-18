@@ -16,6 +16,10 @@ export interface DetallePedidoProveedor {
   cantidadNecesaria: number;
   cantidadPedida: number;
   precioUnitario: number | null;
+  // TASK-105 (docs/2026-09-18-auditoria-dominio-roles-frontend.md): fotografía del código que el
+  // proveedor de este pedido usaba para el producto al momento de agregar el detalle (resuelto
+  // automáticamente por el backend contra ProductoProveedor) — null si no existía esa relación.
+  codigoProveedorUtilizado: string | null;
   distribuciones: DistribucionPedido[];
 }
 

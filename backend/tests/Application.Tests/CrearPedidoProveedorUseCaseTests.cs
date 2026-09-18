@@ -17,6 +17,7 @@ public class CrearPedidoProveedorUseCaseTests
         public FakeRequisicionRepository Requisiciones { get; } = new();
         public FakeConsolidacionRepository Consolidaciones { get; } = new();
         public FakePedidoProveedorRepository Pedidos { get; } = new();
+        public FakeProductoProveedorRepository ProductosProveedor { get; } = new();
         public FakePeriodoRepository Periodos { get; } = new();
         public FakeProveedorRepository Proveedores { get; } = new();
         public FakeSedeRepository Sedes { get; } = new();
@@ -39,7 +40,7 @@ public class CrearPedidoProveedorUseCaseTests
 
         public CrearPedidoProveedorUseCase CrearUseCase() =>
             new(Pedidos, Consolidaciones, Proveedores, Auditoria, Ids, NullLogger<CrearPedidoProveedorUseCase>.Instance);
-        public AgregarDetallePedidoProveedorUseCase AgregarDetalleUseCase() => new(Pedidos, Ids);
+        public AgregarDetallePedidoProveedorUseCase AgregarDetalleUseCase() => new(Pedidos, ProductosProveedor, Ids);
         public AgregarDistribucionPedidoUseCase AgregarDistribucionUseCase() => new(Pedidos, Sedes, Ids);
 
         public Producto CrearProducto(string nombre) =>
@@ -148,6 +149,56 @@ public class CrearPedidoProveedorUseCaseTests
         Assert.Equal(100, detalle.CantidadPedida);
         Assert.Equal(12.5m, detalle.PrecioUnitario);
         Assert.Equal(detalleConsolidado.Id, detalle.DetalleConsolidacionId);
+    }
+
+    // TASK-105 (docs/2026-09-18-auditoria-dominio-roles-frontend.md, hallazgo D1/F4).
+    [Fact]
+    public void Agregar_detalle_incluye_el_codigo_del_proveedor_cuando_existe_la_relacion()
+    {
+        var escenario = new Escenario();
+        var producto = escenario.CrearProducto("Papel higiénico");
+        var (consolidacion, detalleConsolidado) = escenario.CrearConsolidacionConUnDetalle(producto, 85);
+        var pedido = escenario.CrearUseCase().Ejecutar(
+            Fecha, new CrearPedidoProveedorRequest(consolidacion.Id, escenario.Proveedor.Id, "PO-001"), usuarioId: 10);
+        escenario.ProductosProveedor.Guardar(
+            new ProductoProveedor(escenario.Ids.Siguiente(), producto, escenario.Proveedor, "COD-PROV-001"));
+
+        var respuesta = escenario.AgregarDetalleUseCase().Ejecutar(
+            pedido.Id, new AgregarDetallePedidoProveedorRequest(detalleConsolidado.Id, CantidadPedida: 100));
+
+        Assert.Equal("COD-PROV-001", respuesta.Detalles[0].CodigoProveedorUtilizado);
+    }
+
+    [Fact]
+    public void Agregar_detalle_sin_relacion_producto_proveedor_deja_el_codigo_en_null()
+    {
+        var escenario = new Escenario();
+        var (consolidacion, detalleConsolidado) = escenario.CrearConsolidacionConUnDetalle(escenario.CrearProducto("Papel higiénico"), 85);
+        var pedido = escenario.CrearUseCase().Ejecutar(
+            Fecha, new CrearPedidoProveedorRequest(consolidacion.Id, escenario.Proveedor.Id, "PO-001"), usuarioId: 10);
+
+        var respuesta = escenario.AgregarDetalleUseCase().Ejecutar(
+            pedido.Id, new AgregarDetallePedidoProveedorRequest(detalleConsolidado.Id, CantidadPedida: 100));
+
+        Assert.Null(respuesta.Detalles[0].CodigoProveedorUtilizado);
+    }
+
+    [Fact]
+    public void Agregar_detalle_ignora_una_relacion_producto_proveedor_de_otro_proveedor()
+    {
+        var escenario = new Escenario();
+        var producto = escenario.CrearProducto("Papel higiénico");
+        var (consolidacion, detalleConsolidado) = escenario.CrearConsolidacionConUnDetalle(producto, 85);
+        var pedido = escenario.CrearUseCase().Ejecutar(
+            Fecha, new CrearPedidoProveedorRequest(consolidacion.Id, escenario.Proveedor.Id, "PO-001"), usuarioId: 10);
+        var otroProveedor = new Proveedor(escenario.Ids.Siguiente(), "Otro proveedor");
+        escenario.ProductosProveedor.Guardar(
+            new ProductoProveedor(escenario.Ids.Siguiente(), producto, otroProveedor, "COD-DE-OTRO-PROVEEDOR"));
+
+        var respuesta = escenario.AgregarDetalleUseCase().Ejecutar(
+            pedido.Id, new AgregarDetallePedidoProveedorRequest(detalleConsolidado.Id, CantidadPedida: 100));
+
+        Assert.Null(respuesta.Detalles[0].CodigoProveedorUtilizado);
     }
 
     [Fact]

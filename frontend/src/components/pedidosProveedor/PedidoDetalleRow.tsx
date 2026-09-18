@@ -51,6 +51,9 @@ export function PedidoDetalleRow({ pedidoId, detalle, nombreProducto, editable, 
     <>
       <tr className="border-b border-slate-100">
         <td className="py-2 pr-3 text-slate-900">{nombreProducto}</td>
+        <td className="py-2 pr-3 text-slate-900">
+          {detalle.codigoProveedorUtilizado ?? <span className="text-slate-400 italic">Sin código registrado</span>}
+        </td>
         <td className="py-2 pr-3 text-slate-900">{detalle.cantidadNecesaria}</td>
         <td className="py-2 pr-3 text-slate-900">{detalle.cantidadPedida}</td>
         <td className="py-2 pr-3 text-slate-900">{detalle.precioUnitario ?? "—"}</td>
@@ -59,7 +62,7 @@ export function PedidoDetalleRow({ pedidoId, detalle, nombreProducto, editable, 
         </td>
       </tr>
       <tr className="border-b border-slate-100 last:border-0">
-        <td colSpan={5} className="pb-3">
+        <td colSpan={6} className="pb-3">
           {detalle.distribuciones.length > 0 && (
             <ul className="mb-2 flex flex-wrap gap-2 text-xs text-slate-600">
               {detalle.distribuciones.map((distribucion) => (

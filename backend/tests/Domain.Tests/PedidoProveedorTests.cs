@@ -133,6 +133,46 @@ public class PedidoProveedorTests
         Assert.Throws<ReglaDeNegocioException>(() => pedido.AgregarDetalle(1, detalleConsolidado, cantidadPedida: 0));
     }
 
+    // TASK-105 (docs/2026-09-18-auditoria-dominio-roles-frontend.md, hallazgo D1/F4).
+    [Fact]
+    public void Agregar_detalle_captura_el_codigo_del_proveedor_cuando_existe_la_relacion()
+    {
+        var producto = CrearProducto(1, "Papel higiénico");
+        var (consolidacion, detalleConsolidado, _, _) = CrearConsolidacionConUnDetalle(producto, 85);
+        var proveedor = CrearProveedor();
+        var pedido = CrearPedido(consolidacion, proveedor);
+        var productoProveedor = new ProductoProveedor(1, producto, proveedor, "COD-PROV-001");
+
+        var detallePedido = pedido.AgregarDetalle(1, detalleConsolidado, cantidadPedida: 100, productoProveedor: productoProveedor);
+
+        Assert.Equal("COD-PROV-001", detallePedido.CodigoProveedorUtilizado);
+    }
+
+    [Fact]
+    public void Agregar_detalle_sin_relacion_producto_proveedor_deja_el_codigo_en_null()
+    {
+        var producto = CrearProducto(1, "Papel higiénico");
+        var (consolidacion, detalleConsolidado, _, _) = CrearConsolidacionConUnDetalle(producto, 85);
+        var pedido = CrearPedido(consolidacion);
+
+        var detallePedido = pedido.AgregarDetalle(1, detalleConsolidado, cantidadPedida: 100);
+
+        Assert.Null(detallePedido.CodigoProveedorUtilizado);
+    }
+
+    [Fact]
+    public void No_permite_usar_una_relacion_producto_proveedor_de_otro_proveedor()
+    {
+        var producto = CrearProducto(1, "Papel higiénico");
+        var (consolidacion, detalleConsolidado, _, _) = CrearConsolidacionConUnDetalle(producto, 85);
+        var pedido = CrearPedido(consolidacion, CrearProveedor());
+        var otroProveedor = new Proveedor(2, "Proveedor Dos");
+        var productoProveedorDeOtroProveedor = new ProductoProveedor(1, producto, otroProveedor, "COD-OTRO");
+
+        Assert.Throws<ReglaDeNegocioException>(() =>
+            pedido.AgregarDetalle(1, detalleConsolidado, cantidadPedida: 100, productoProveedor: productoProveedorDeOtroProveedor));
+    }
+
     [Fact]
     public void Distribuye_el_detalle_del_pedido_entre_sedes_de_distintas_empresas()
     {

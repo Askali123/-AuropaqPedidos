@@ -39,6 +39,7 @@ public static class DependencyInjection
         services.AddScoped<ObtenerPermisosDeRolUseCase>();
         services.AddScoped<LoginUseCase>();
         services.AddScoped<UsuarioTienePermisoUseCase>();
+        services.AddScoped<ObtenerMisPermisosUseCase>();
         services.AddScoped<UsuarioTieneAlcanceSobreRequisicionUseCase>();
         services.AddScoped<ListarSedesPorEmpresaUseCase>();
         services.AddScoped<ListarProductosUseCase>();

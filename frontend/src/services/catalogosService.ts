@@ -2,6 +2,7 @@ import { apiClient } from "./apiClient";
 import type {
   ActualizarCategoriaRequest,
   ActualizarEmpresaRequest,
+  ActualizarProductoProveedorRequest,
   ActualizarProductoRequest,
   ActualizarProveedorRequest,
   ActualizarSedeRequest,
@@ -10,6 +11,7 @@ import type {
   CrearCategoriaRequest,
   CrearEmpresaRequest,
   CrearPeriodoRequest,
+  CrearProductoProveedorRequest,
   CrearProductoRequest,
   CrearProveedorRequest,
   CrearSedeRequest,
@@ -17,6 +19,7 @@ import type {
   Empresa,
   Periodo,
   Producto,
+  ProductoProveedor,
   Proveedor,
   Sede,
   UnidadMedida,
@@ -84,4 +87,23 @@ export const catalogosService = {
 
   crearPeriodo: (request: CrearPeriodoRequest): Promise<Periodo> =>
     apiClient.post<Periodo>("/api/v1/periodos", request),
+
+  // docs/05-api.md §30 (TASK-019). Misma relación consultada desde ambos lados: por producto
+  // (crear/listar/editar) y por proveedor (solo listar — la creación siempre parte de un
+  // Producto, no hay un segundo formulario de alta desde Proveedores).
+  listarProveedoresDeProducto: (productoId: number): Promise<ProductoProveedor[]> =>
+    apiClient.get<ProductoProveedor[]>(`/api/v1/productos/${productoId}/proveedores`),
+
+  asociarProveedorAProducto: (productoId: number, request: CrearProductoProveedorRequest): Promise<ProductoProveedor> =>
+    apiClient.post<ProductoProveedor>(`/api/v1/productos/${productoId}/proveedores`, request),
+
+  actualizarProductoProveedor: (
+    productoId: number,
+    relacionId: number,
+    request: ActualizarProductoProveedorRequest,
+  ): Promise<ProductoProveedor> =>
+    apiClient.put<ProductoProveedor>(`/api/v1/productos/${productoId}/proveedores/${relacionId}`, request),
+
+  listarProductosDeProveedor: (proveedorId: number): Promise<ProductoProveedor[]> =>
+    apiClient.get<ProductoProveedor[]>(`/api/v1/proveedores/${proveedorId}/productos`),
 };

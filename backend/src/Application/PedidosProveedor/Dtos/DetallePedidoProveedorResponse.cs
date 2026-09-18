@@ -10,4 +10,5 @@ public sealed record DetallePedidoProveedorResponse(
     int CantidadNecesaria,
     int CantidadPedida,
     decimal? PrecioUnitario,
+    string? CodigoProveedorUtilizado,
     IReadOnlyList<DistribucionPedidoResponse> Distribuciones);

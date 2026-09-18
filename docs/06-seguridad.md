@@ -709,6 +709,16 @@ POST /api/v1/requisiciones/25/aprobar
 
 Por eso el backend debe rechazar la operación si no está autorizado.
 
+> **Actualización (2026-09-18, TASK-102,
+> `docs/2026-09-18-auditoria-dominio-roles-frontend.md`, hallazgo F1):** implementado. El
+> Frontend consulta `GET /auth/mis-permisos` (`§56.3`) al iniciar sesión y usa esos códigos
+> reales para ocultar del menú (`AppLayout.tsx`) y bloquear el acceso directo por URL
+> (`RutaConPermiso`, `AppRoutes.tsx`) cualquier sección para la que el usuario no tenga ningún
+> permiso relevante — antes de esta fecha, cualquier usuario autenticado veía las 9 secciones
+> por igual, sin excepción, y el backend era la única protección real. Sigue siendo así (esto es
+> únicamente UX, exactamente como advierte el párrafo de arriba): el backend no cambió su
+> comportamiento de autorización en esta tarea.
+
 ---
 
 # 22. Protección contra manipulación de IDs

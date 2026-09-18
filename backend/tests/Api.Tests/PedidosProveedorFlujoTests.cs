@@ -1,6 +1,7 @@
 using System.Net;
 using System.Net.Http.Headers;
 using System.Net.Http.Json;
+using AuropaqPedidos.Domain.Entities;
 using AuropaqPedidos.Infrastructure.Persistence.Context;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
@@ -84,6 +85,40 @@ public sealed class PedidosProveedorFlujoTests : IClassFixture<ApiWebApplication
         Assert.Equal(HttpStatusCode.OK, respuestaEnviar.StatusCode);
         var enviado = await respuestaEnviar.Content.ReadFromJsonAsync<Envoltorio<PedidoProveedorDto>>();
         Assert.Equal("Enviado", enviado!.Data.Estado);
+    }
+
+    // TASK-105 (docs/2026-09-18-auditoria-dominio-roles-frontend.md, hallazgo D1/F4).
+    [Fact]
+    public async Task Agregar_detalle_incluye_el_codigo_del_proveedor_cuando_existe_la_relacion()
+    {
+        var escenario = await NuevoEscenarioAsync(70);
+
+        using (var scope = _factory.Services.CreateScope())
+        {
+            var db = scope.ServiceProvider.GetRequiredService<AuropaqPedidosDbContext>();
+            var producto = await db.Productos.SingleAsync(p => p.Id == escenario.EmpresaId);
+            var proveedor = await db.Proveedores.SingleAsync(p => p.Id == escenario.ProveedorId);
+            db.ProductosProveedores.Add(new ProductoProveedor(70, producto, proveedor, "COD-PROV-070"));
+            await db.SaveChangesAsync();
+        }
+
+        var respuestaCrear = await _cliente.PostAsJsonAsync("/api/v1/pedidos-proveedor", new
+        {
+            consolidacionId = escenario.ConsolidacionId,
+            proveedorId = escenario.ProveedorId,
+            numeroPedido = "PO-070"
+        });
+        var pedido = await respuestaCrear.Content.ReadFromJsonAsync<Envoltorio<PedidoProveedorDto>>();
+
+        var respuestaDetalle = await _cliente.PostAsJsonAsync($"/api/v1/pedidos-proveedor/{pedido!.Data.Id}/detalles", new
+        {
+            detalleConsolidacionId = escenario.DetalleConsolidacionId,
+            cantidadPedida = 100,
+        });
+
+        Assert.Equal(HttpStatusCode.Created, respuestaDetalle.StatusCode);
+        var conDetalle = await respuestaDetalle.Content.ReadFromJsonAsync<Envoltorio<PedidoProveedorDto>>();
+        Assert.Equal("COD-PROV-070", conDetalle!.Data.Detalles[0].CodigoProveedorUtilizado);
     }
 
     [Fact]
@@ -267,5 +302,5 @@ public sealed class PedidosProveedorFlujoTests : IClassFixture<ApiWebApplication
         int Id, int ConsolidacionId, int ProveedorId, string NumeroPedido, string Estado, IReadOnlyList<DetallePedidoProveedorDto> Detalles);
 
     private sealed record DetallePedidoProveedorDto(
-        int Id, int CantidadNecesaria, int CantidadPedida, IReadOnlyList<object> Distribuciones);
+        int Id, int CantidadNecesaria, int CantidadPedida, string? CodigoProveedorUtilizado, IReadOnlyList<object> Distribuciones);
 }

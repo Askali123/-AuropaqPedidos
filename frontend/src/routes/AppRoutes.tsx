@@ -11,7 +11,13 @@ import { CatalogoPage } from "../pages/CatalogoPage";
 import { RevisionPage } from "../pages/RevisionPage";
 import { SolicitudesProductoPage } from "../pages/SolicitudesProductoPage";
 import { ProtectedRoute } from "./ProtectedRoute";
+import { RutaConPermiso } from "./RutaConPermiso";
+import { permisosDe } from "./enlaces";
 
+// TASK-102 (docs/2026-09-18-auditoria-dominio-roles-frontend.md, hallazgo F1): cada ruta
+// administrativa/operativa queda protegida por permiso real (RutaConPermiso), además de que
+// AppLayout ya oculta su enlace del menú — cubre navegar directamente a la URL. permisosDe(ruta)
+// lee del mismo archivo (routes/enlaces.ts) que usa el menú, para que ambos no se desincronicen.
 export function AppRoutes() {
   return (
     <Routes>
@@ -24,15 +30,78 @@ export function AppRoutes() {
           </ProtectedRoute>
         }
       >
-        <Route path="/requisiciones" element={<RequisicionesPage />} />
-        <Route path="/consolidacion" element={<ConsolidacionPage />} />
-        <Route path="/pedidos-proveedor" element={<PedidosProveedorPage />} />
-        <Route path="/entregas" element={<EntregasPage />} />
-        <Route path="/facturacion" element={<FacturacionPage />} />
-        <Route path="/seguridad" element={<SeguridadPage />} />
-        <Route path="/catalogo" element={<CatalogoPage />} />
-        <Route path="/revision" element={<RevisionPage />} />
-        <Route path="/solicitudes-producto" element={<SolicitudesProductoPage />} />
+        <Route
+          path="/requisiciones"
+          element={
+            <RutaConPermiso permisos={permisosDe("/requisiciones")}>
+              <RequisicionesPage />
+            </RutaConPermiso>
+          }
+        />
+        <Route
+          path="/consolidacion"
+          element={
+            <RutaConPermiso permisos={permisosDe("/consolidacion")}>
+              <ConsolidacionPage />
+            </RutaConPermiso>
+          }
+        />
+        <Route
+          path="/pedidos-proveedor"
+          element={
+            <RutaConPermiso permisos={permisosDe("/pedidos-proveedor")}>
+              <PedidosProveedorPage />
+            </RutaConPermiso>
+          }
+        />
+        <Route
+          path="/entregas"
+          element={
+            <RutaConPermiso permisos={permisosDe("/entregas")}>
+              <EntregasPage />
+            </RutaConPermiso>
+          }
+        />
+        <Route
+          path="/facturacion"
+          element={
+            <RutaConPermiso permisos={permisosDe("/facturacion")}>
+              <FacturacionPage />
+            </RutaConPermiso>
+          }
+        />
+        <Route
+          path="/seguridad"
+          element={
+            <RutaConPermiso permisos={permisosDe("/seguridad")}>
+              <SeguridadPage />
+            </RutaConPermiso>
+          }
+        />
+        <Route
+          path="/catalogo"
+          element={
+            <RutaConPermiso permisos={permisosDe("/catalogo")}>
+              <CatalogoPage />
+            </RutaConPermiso>
+          }
+        />
+        <Route
+          path="/revision"
+          element={
+            <RutaConPermiso permisos={permisosDe("/revision")}>
+              <RevisionPage />
+            </RutaConPermiso>
+          }
+        />
+        <Route
+          path="/solicitudes-producto"
+          element={
+            <RutaConPermiso permisos={permisosDe("/solicitudes-producto")}>
+              <SolicitudesProductoPage />
+            </RutaConPermiso>
+          }
+        />
         <Route path="/" element={<Navigate to="/requisiciones" replace />} />
       </Route>
 

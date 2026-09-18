@@ -259,6 +259,7 @@ export function PedidosProveedorPage() {
               <thead>
                 <tr className="border-b border-slate-200 text-xs text-slate-500">
                   <th className="pb-2 pr-3 font-medium">Producto</th>
+                  <th className="pb-2 pr-3 font-medium">Código proveedor</th>
                   <th className="pb-2 pr-3 font-medium">Cantidad necesaria</th>
                   <th className="pb-2 pr-3 font-medium">Cantidad pedida</th>
                   <th className="pb-2 pr-3 font-medium">Precio unitario</th>
@@ -278,7 +279,7 @@ export function PedidosProveedorPage() {
                 ))}
                 {pedidoSeleccionado.detalles.length === 0 && (
                   <tr>
-                    <td colSpan={5} className="py-3 text-sm text-slate-500">
+                    <td colSpan={6} className="py-3 text-sm text-slate-500">
                       Todavía no se ha agregado ningún producto.
                     </td>
                   </tr>

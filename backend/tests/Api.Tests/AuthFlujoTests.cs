@@ -124,6 +124,56 @@ public sealed class AuthFlujoTests : IClassFixture<ApiWebApplicationFactory>
         Assert.Equal("CREDENCIALES_INVALIDAS", error!.Error.Code);
     }
 
+    // TASK-101 (docs/2026-09-18-auditoria-dominio-roles-frontend.md, Decisión A): autoconsulta de
+    // permisos, base para que el Frontend pueda filtrar navegación sin depender de SEGURIDAD_VER.
+    [Fact]
+    public async Task MisPermisos_sin_jwt_devuelve_401()
+    {
+        var respuesta = await _cliente.GetAsync("/api/v1/auth/mis-permisos");
+
+        Assert.Equal(HttpStatusCode.Unauthorized, respuesta.StatusCode);
+    }
+
+    [Fact]
+    public async Task MisPermisos_devuelve_exactamente_los_permisos_reales_del_usuario()
+    {
+        using var scope = _factory.Services.CreateScope();
+        var db = scope.ServiceProvider.GetRequiredService<AuropaqPedidosDbContext>();
+        var escenario = await Escenario.CrearAsync(db, 305);
+        var token = await AutorizacionHelper.CrearTokenConPermisosAsync(
+            _factory, db, 305, escenario.EmpresaId, "REQUISICION_CREAR", "REQUISICION_VER");
+
+        var solicitud = new HttpRequestMessage(HttpMethod.Get, "/api/v1/auth/mis-permisos");
+        solicitud.Headers.Authorization = new AuthenticationHeaderValue("Bearer", token);
+        var respuesta = await _cliente.SendAsync(solicitud);
+
+        Assert.Equal(HttpStatusCode.OK, respuesta.StatusCode);
+        var cuerpo = await respuesta.Content.ReadFromJsonAsync<Envoltorio<IReadOnlyList<PermisoDto>>>();
+        var codigos = cuerpo!.Data.Select(p => p.Codigo).ToList();
+        Assert.Equal(2, codigos.Count);
+        Assert.Contains("REQUISICION_CREAR", codigos);
+        Assert.Contains("REQUISICION_VER", codigos);
+    }
+
+    [Fact]
+    public async Task MisPermisos_de_un_usuario_sin_ningun_rol_devuelve_lista_vacia()
+    {
+        using var scope = _factory.Services.CreateScope();
+        var db = scope.ServiceProvider.GetRequiredService<AuropaqPedidosDbContext>();
+        var escenario = await Escenario.CrearAsync(db, 306);
+        var token = await AutorizacionHelper.CrearTokenConPermisosAsync(_factory, db, 306, escenario.EmpresaId);
+
+        var solicitud = new HttpRequestMessage(HttpMethod.Get, "/api/v1/auth/mis-permisos");
+        solicitud.Headers.Authorization = new AuthenticationHeaderValue("Bearer", token);
+        var respuesta = await _cliente.SendAsync(solicitud);
+
+        Assert.Equal(HttpStatusCode.OK, respuesta.StatusCode);
+        var cuerpo = await respuesta.Content.ReadFromJsonAsync<Envoltorio<IReadOnlyList<PermisoDto>>>();
+        Assert.Empty(cuerpo!.Data);
+    }
+
+    private sealed record PermisoDto(int Id, string Codigo, string Nombre, string? Descripcion);
+
     private sealed record Envoltorio<T>(T Data);
 
     private sealed record ErrorEnvoltorio(ErrorDetalleDto Error);

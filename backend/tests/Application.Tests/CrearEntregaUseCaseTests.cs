@@ -19,6 +19,7 @@ public class CrearEntregaUseCaseTests
         public FakeRequisicionRepository Requisiciones { get; } = new();
         public FakeConsolidacionRepository Consolidaciones { get; } = new();
         public FakePedidoProveedorRepository Pedidos { get; } = new();
+        public FakeProductoProveedorRepository ProductosProveedor { get; } = new();
         public FakeEntregaRepository Entregas { get; } = new();
         public FakePeriodoRepository Periodos { get; } = new();
         public FakeProveedorRepository Proveedores { get; } = new();
@@ -72,7 +73,7 @@ public class CrearEntregaUseCaseTests
                 Pedidos, Consolidaciones, Proveedores, Auditoria, Ids, NullLogger<CrearPedidoProveedorUseCase>.Instance);
             var pedido = pedidoUseCase.Ejecutar(Fecha, new CrearPedidoProveedorRequest(consolidacion.Id, Proveedor.Id, "PO-001"), usuarioId: 10);
 
-            var detallePedidoUseCase = new AgregarDetallePedidoProveedorUseCase(Pedidos, Ids);
+            var detallePedidoUseCase = new AgregarDetallePedidoProveedorUseCase(Pedidos, ProductosProveedor, Ids);
             var conDetalle = detallePedidoUseCase.Ejecutar(pedido.Id, new AgregarDetallePedidoProveedorRequest(consolidacion.Detalles[0].Id, cantidadPedida));
 
             // RN-065/D-18 (2026-09-17): distribución completa exigida antes de enviar. Reutiliza

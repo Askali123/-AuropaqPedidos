@@ -23,6 +23,11 @@ public sealed class DetallePedidoProveedorConfiguration : IEntityTypeConfigurati
         // obligatorio, y el precio puede no conocerse todavía al crear el detalle.
         builder.Property(d => d.PrecioUnitario).IsRequired(false).HasPrecision(18, 2);
 
+        // TASK-105: fotografía de ProductoProveedor.CodigoProveedor en el momento de agregar el
+        // detalle — no es una FK (mismo criterio que DistribucionEntrega.DireccionEntrega): si
+        // el código se edita después en el catálogo, este valor no debe cambiar.
+        builder.Property(d => d.CodigoProveedorUtilizado).IsRequired(false);
+
         // Propiedad calculada de Domain (SUM de Distribuciones.Cantidad): no se persiste.
         builder.Ignore(d => d.CantidadDistribuida);
 

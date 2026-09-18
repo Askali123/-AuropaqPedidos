@@ -5,7 +5,9 @@ import { useAuth } from "../auth/AuthContext";
 // Redirige a /login preservando la ruta de origen (state.desde) para volver ahí después de
 // iniciar sesión — ver LoginPage. El backend sigue siendo quien decide 401/403 en cada endpoint
 // (03-arquitectura.md §25/§997): esto solo evita mostrar una pantalla que fallaría de entrada
-// porque no hay ningún token que enviar.
+// porque no hay ningún token que enviar. Solo verifica autenticación (¿hay sesión?) — la
+// verificación de permiso por pantalla (¿puede ver ESTA sección?) vive en RutaConPermiso
+// (TASK-102), un guard separado y más específico que envuelve cada Route individualmente.
 export function ProtectedRoute({ children }: { children: ReactNode }) {
   const { usuario } = useAuth();
   const location = useLocation();

@@ -19,6 +19,15 @@ public sealed class DetallePedidoProveedor
     public int CantidadPedida { get; private set; }
     public decimal? PrecioUnitario { get; private set; }
 
+    // TASK-105 (docs/2026-09-18-auditoria-dominio-roles-frontend.md, hallazgo D1/F4): fotografía
+    // del código que ese Proveedor usaba para este Producto (ProductoProveedor.CodigoProveedor)
+    // en el momento de agregar el detalle — mismo criterio de snapshot ya usado en
+    // DistribucionEntrega (RN-035/ADR-019): si el código se edita después en el catálogo, el
+    // pedido ya emitido no debe cambiar retroactivamente. Null si no existe una relación
+    // Producto-Proveedor activa para ese par (RN-041 dice que el sistema "puede mostrar" esa
+    // información, no que sea obligatoria).
+    public string? CodigoProveedorUtilizado { get; }
+
     private readonly List<DistribucionPedido> _distribuciones = new();
     public IReadOnlyList<DistribucionPedido> Distribuciones => _distribuciones;
 
@@ -37,7 +46,9 @@ public sealed class DetallePedidoProveedor
     }
 #pragma warning restore CS8618
 
-    internal DetallePedidoProveedor(int id, Producto producto, int cantidadNecesaria, int cantidadPedida, decimal? precioUnitario)
+    internal DetallePedidoProveedor(
+        int id, Producto producto, int cantidadNecesaria, int cantidadPedida, decimal? precioUnitario,
+        ProductoProveedor? productoProveedor = null)
     {
         if (producto is null)
             throw new ReglaDeNegocioException("Un detalle de pedido debe tener un producto.");
@@ -50,6 +61,11 @@ public sealed class DetallePedidoProveedor
         CantidadNecesaria = cantidadNecesaria;
         CantidadPedida = cantidadPedida;
         PrecioUnitario = precioUnitario;
+
+        // Snapshot histórico (mismo criterio que DistribucionEntrega/RN-035): se copia el valor
+        // vigente de ProductoProveedor en este instante, no una referencia que cambie si el
+        // catálogo se actualiza después.
+        CodigoProveedorUtilizado = productoProveedor?.CodigoProveedor;
     }
 
     internal DistribucionPedido AgregarDistribucion(int id, Sede sede, int cantidad)

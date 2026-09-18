@@ -1011,3 +1011,459 @@ Las fases siguientes (Consolidación, Pedidos, Entregas, Facturación, Seguridad
   - **Continúa / siguiente paso:** con esto se cierra por completo el incremento "Fase 6-9 en
     Frontend" (Prioridades 1 a 4). Sin tareas abiertas de este incremento — pendiente de que el
     usuario indique el siguiente foco de trabajo.
+
+- **2026-09-17 (P1-1 y P1-2, `docs/2026-09-17-1452-tareas.md`)** — Bloque solicitado
+  explícitamente por el usuario: análisis de continuación ("quiero que hagas un analices de como
+  podemos continuar en orden y por prioridad") seguido de "si pacemos a P1-1" y "si continuemos
+  con P1-2". Alcance: git (commit) y `docs/08-tareas.md` — ningún archivo de código se tocó.
+  - **P1-1 — Commit del incremento "Fase 6-9 en Frontend":** los 91 archivos acumulados durante
+    toda la sesión (endpoints GET, guarda RN-065, 12 pruebas de autorización, 4 pantallas de
+    Frontend, routing/nav, documentación) se confirmaron en un solo commit —
+    `24018c0 feat: cerrar incremento Fase 6-9 en Frontend (Consolidacion, Pedidos, Entregas,
+    Facturacion)`. Working tree limpio después del commit.
+  - **P1-2 — Sincronización de `docs/08-tareas.md`:** verificado contra código real (no contra
+    lo que el documento ya decía) que TASK-001–007 y TASK-014–035 (Fases 0-5: base técnica,
+    Empresa/Sede, Catálogo, Periodos, Requisiciones, Revisión) estaban implementadas y probadas
+    pese a seguir marcadas `PENDIENTE` sin ninguna nota — se corrigió cada una individualmente
+    con evidencia concreta (endpoint, clase o prueba). TASK-048/049/050 (Autenticación,
+    Autorización por permisos, Autorización por alcance) pasaron de `EN_DESARROLLO` a
+    `COMPLETADA`; la nota de TASK-049 estaba desactualizada en su alcance (decía "2 endpoints
+    protegidos" cuando hoy todos los controllers exigen `[Authorize]` real, más el
+    `FallbackPolicy` global) y se corrigió. TASK-051 a TASK-064 (protección de IDs, pruebas de
+    reglas/API, manejo de errores, logging, auditoría, y las Fases 12/13 completas) **no tenían
+    el campo `### Estado`** — hueco estructural, no solo de desactualización — se agregó a las
+    14 tareas.
+  - **Corrección relevante encontrada durante la verificación (TASK-056 Auditoría):** una
+    suposición previa (de un análisis anterior en esta misma sesión) afirmaba que `Auditoria`
+    estaba cableada también en `AprobarRequisicionUseCase`/`DevolverRequisicionUseCase` — al
+    verificar el código directamente, eso es **falso**: esos dos casos de uso usan
+    `HistorialRequisicion` (TASK-030), no `Auditoria`. Se corrigió la nota de TASK-056 para
+    reflejar el estado real (3 de los 6 ejemplos del TASK usan `Auditoria`; los otros 2 usan
+    `HistorialRequisicion` por diseño, no por un hueco) en vez de repetir la afirmación
+    incorrecta.
+  - **Fase 12 (Rendimiento) y Fase 13 (Despliegue):** en vez de dejarlas sin `### Estado`, se
+    marcaron explícitamente `BLOQUEADA` (TASK-057/058/059/060/063/064) o `EN_DESARROLLO` parcial
+    (TASK-061: Development/Testing listos, Production bloqueado) con el motivo documentado en
+    cada una — más honesto que un campo vacío, sin implicar que falte trabajo por hacer cuando en
+    realidad están bloqueadas por su propia regla (`CLAUDE.md §44`, falta de decisión de entorno).
+  - **Archivos modificados:** `docs/08-tareas.md` (44 tareas actualizadas: TASK-001–007,
+    014–035, 048–056, 057–064); `docs/2026-09-17-1452-tareas.md`; `progreso.md`. Commit de P1-1
+    incluyó además todos los archivos ya descritos en la entrada anterior de este mismo día.
+  - **Compilación:** no aplica (solo documentación en este bloque — P1-1 no modificó código,
+    solo confirmó en git lo ya compilado/probado en bloques anteriores).
+  - **Pruebas:** no aplica (sin cambios de código).
+  - **Decisiones pendientes de negocio:** ninguna (0, `docs/decisiones-pendientes.md`).
+  - **Continúa / siguiente paso:** quedan abiertas P2-1 (infraestructura de pruebas de Frontend,
+    Vitest + Testing Library — hueco real contra `CLAUDE.md §45`, hoy en cero), P2-2 (TASK-051 ya
+    cerrada en este bloque, sin acción pendiente) y P3-1 (D-13, sustitución de productos —
+    decidida pero no construida, requiere confirmar con el usuario si ya hay necesidad real),
+    pendiente de que el usuario indique con cuál continuar.
+
+- **2026-09-17 (P2-1: infraestructura de pruebas de Frontend)** — Bloque solicitado
+  explícitamente por el usuario: "sigamos con P2". Alcance: solo `frontend/` — ningún archivo de
+  backend se tocó.
+  - **Qué se hizo:** instalado `vitest` + `@testing-library/react`/`jest-dom`/`user-event` +
+    `jsdom` como devDependencies (única combinación estándar para Vite + React + TS, sin
+    alternativas reales a evaluar — `CLAUDE.md §48`). `vite.config.ts` ahora importa
+    `defineConfig` de `vitest/config` (reexporta el de Vite con el campo `test` añadido, una sola
+    configuración para dev/build/pruebas) con `environment: "jsdom"` y
+    `setupFiles: ["./src/test/setup.ts"]`. Se evitó `test.globals: true` deliberadamente —
+    `describe`/`it`/`expect`/`vi` se importan explícitamente en cada archivo, consistente con el
+    resto del proyecto (sin "magia" implícita, `CLAUDE.md §70`) en vez de agregar
+    `"vitest/globals"` a `tsconfig.app.json` (que filtraría esos globals a todo el código de
+    producción, no solo a pruebas). Scripts nuevos: `npm run test` (`vitest run`, una sola
+    pasada) y `npm run test:watch`.
+  - **Primera prueba real (no un smoke test trivial):** `src/services/apiClient.test.ts` (7
+    casos) — cubre exactamente la lógica de negocio real de `apiClient.ts`: adjuntar/omitir el
+    header `Authorization` según haya sesión guardada, desenvolver el campo `data` de una
+    respuesta exitosa, traducir el envoltorio `{ error: {...} }` de la Api a `ApiRequestError`,
+    limpiar la sesión (`localStorage`) solo cuando un 401 llega **con** un token ya guardado
+    (sesión expirada) y **no** limpiarla en un 401 de login con credenciales inválidas (mismo
+    matiz que ya distingue el código fuente), y traducir un fallo real de red (Api inalcanzable)
+    al código `SIN_CONEXION`. Usa `localStorage` real (jsdom) en vez de mockear el módulo de
+    sesión, para probar la integración real entre `apiClient` y `auth/session.ts`.
+  - **Archivos creados:** `frontend/src/test/setup.ts`, `frontend/src/services/apiClient.test.ts`.
+  - **Archivos modificados:** `frontend/vite.config.ts`, `frontend/package.json`,
+    `frontend/package-lock.json`; `docs/2026-09-17-1452-tareas.md`; `progreso.md`.
+  - **Compilación:** `npx tsc -b` → sin errores; `npm run build` → correcto (78 módulos,
+    build de producción sin cambios de tamaño relevantes; el archivo de pruebas no se incluye en
+    el bundle).
+  - **Pruebas:** `npx vitest run` → **7/7 correctas**, primera ejecución real de pruebas de
+    Frontend en el proyecto.
+  - **Decisiones pendientes de negocio:** ninguna (0, `docs/decisiones-pendientes.md`).
+  - **Continúa / siguiente paso:** P2-1 cerrado. Cobertura de Frontend sigue siendo mínima (solo
+    `apiClient.ts`) — ampliarla a componentes/páginas concretas puede plantearse como tarea
+    aparte si el usuario lo pide, no asumido aquí (`CLAUDE.md §71`, no código especulativo). Queda
+    P3-1 (D-13, sustitución de productos) pendiente de que el usuario confirme si hay necesidad
+    real de construirla ahora.
+
+- **2026-09-17 (P3-1: confirmación sobre D-13 — sin implementación)** — El usuario pidió
+  explícitamente continuar con P3-1. Antes de escribir cualquier código se le presentó la
+  pregunta bloqueante que ya estaba señalada en el backlog: D-13/RN-045 sigue "decidida
+  conceptualmente, implementación pendiente de tarea futura" y no existe todavía un diseño de
+  dónde vive la sustitución (impacto documentado: `PedidoProveedor`/`Entrega`, sin especificar en
+  cuál de los dos, o ambos) — construir sin confirmar la necesidad real habría sido código
+  especulativo (`CLAUDE.md §71`) sobre una ambigüedad de modelo de datos (`CLAUDE.md §51`,
+  ambigüedad importante: puede cambiar entidades/relaciones).
+  - **Respuesta del usuario:** "No todavía, mejor la dejamos diferida."
+  - **Resultado:** D-13/RN-045/ADR-048 **permanecen sin implementar**, sin cambios de código ni
+    de documentación de reglas de negocio — se respeta la decisión original tal como estaba.
+  - **Archivos modificados:** `docs/2026-09-17-1452-tareas.md` (P3-1 marcada como confirmada
+    diferida); `progreso.md`.
+  - **Decisiones pendientes de negocio:** ninguna nueva (0, `docs/decisiones-pendientes.md`) — la
+    decisión de negocio de D-13 ya estaba cerrada desde 2026-09-11, lo único que se confirmó hoy
+    es que su implementación sigue sin ser prioritaria.
+  - **Continúa / siguiente paso:** las tres prioridades del backlog de
+    `docs/2026-09-17-1452-tareas.md` (P1-1, P1-2, P2-1) quedan cerradas; P3-1 confirmada diferida.
+    Sin tareas abiertas de este backlog — pendiente de que el usuario indique el siguiente foco
+    de trabajo (posible commit conjunto de P1-2 + P2-1 + P3-1, o una nueva ronda de análisis).
+
+- **2026-09-17 (análisis de cobertura de Frontend + cierre de 2 brechas reales)** — Bloque
+  solicitado explícitamente por el usuario: "quiero que hagas un analisis continues con el
+  desarrollo del frontend". Alcance: solo `frontend/` — ningún archivo de backend se tocó (todos
+  los endpoints usados ya existían).
+  - **Análisis:** se comparó, controller por controller, cada acción HTTP real del backend contra
+    lo que el Frontend efectivamente invoca (no contra lo que "debería" según la documentación).
+    Resultado: el Frontend ya cubre el 100% de Requisiciones/Revisión/Solicitudes de producto/
+    Consolidación/Pedido/Entrega/Factura/Seguridad/Empresas-Sedes/Categorías/Unidades/Periodos.
+    Se encontraron exactamente 2 brechas reales:
+    1. Un placeholder obsoleto en `RequisicionesPage.tsx` que afirmaba "Consolidación... no
+       implementada todavía en esta pantalla" — falso desde que Fase 6-9 se cerró hoy mismo.
+    2. La relación Producto-Proveedor (`ProductoProveedorController`/rutas anidadas bajo
+       `/productos/{id}/proveedores` y `/proveedores/{id}/productos`, TASK-019, CLAUDE.md §23)
+       tenía **cero referencias** en todo `frontend/src` — ni tipo, ni servicio, ni componente,
+       pese a que el backend la soporta por completo desde antes.
+    Se confirmó explícitamente que `UsuarioSede` (asignación de sede a usuario) sigue diferida
+    por una decisión previa ya documentada (no es una brecha silenciosa) y que el CRUD de
+    Empresa/Sede sí existe (`CatalogoPage.tsx` → `EmpresasSeccion`/`SedesPanel`) — no era una
+    brecha como podría sugerir una lectura superficial.
+  - **Qué se hizo:**
+    - `RequisicionesPage.tsx`: eliminado el bloque "Siguiente etapa" con el botón deshabilitado y
+      el comentario de cabecera desactualizado; reemplazado por una nota factual que enlaza
+      conceptualmente a Revisión → Consolidación → Pedidos → Entregas → Facturación.
+    - `ProductoProveedorPanel.tsx` (nuevo): panel expandible por fila de `ProductosSeccion.tsx`
+      (mismo patrón que `SedesPanel`/`EmpresasSeccion`) — listar/asociar/editar proveedores de un
+      producto, con código/descripción propios del proveedor.
+    - `ProductosDeProveedorPanel.tsx` (nuevo): panel expandible por fila de `ProveedoresSeccion.tsx`,
+      de solo lectura (la asociación siempre se crea desde Productos, sin duplicar el alta) —
+      vista inversa de la misma relación.
+    - `types/catalogos.ts`/`services/catalogosService.ts`: tipos y métodos nuevos
+      (`ProductoProveedor`, `listarProveedoresDeProducto`, `asociarProveedorAProducto`,
+      `actualizarProductoProveedor`, `listarProductosDeProveedor`), mismo estilo que el resto del
+      archivo.
+  - **Verificación manual en navegador** (`localhost:5173` contra `localhost:5175` real, sesión
+    `admin.frontend@auropaq.dev`): Catálogo → Productos → "Papel higienico" → "Ver proveedores" →
+    asociar "Distribuidora Andina S.A.S." (código `PROV-PH-01`, descripción) → aparece en la
+    tabla → editar en línea (código → `PROV-PH-01-EDITADO`) → guarda correctamente → Catálogo →
+    Proveedores → "Ver productos" muestra la misma asociación con el código ya editado (confirma
+    que ambas vistas leen la relación real, no datos duplicados). Requisiciones: el bloque
+    "Siguiente etapa" ya no muestra el botón falso, texto correcto. Sin errores de consola.
+  - **Archivos creados:** `frontend/src/components/catalogo/ProductoProveedorPanel.tsx`,
+    `frontend/src/components/catalogo/ProductosDeProveedorPanel.tsx`.
+  - **Archivos modificados:** `frontend/src/components/catalogo/ProductosSeccion.tsx`,
+    `frontend/src/components/catalogo/ProveedoresSeccion.tsx`,
+    `frontend/src/pages/RequisicionesPage.tsx`, `frontend/src/services/catalogosService.ts`,
+    `frontend/src/types/catalogos.ts`; `progreso.md`.
+  - **Compilación:** `npx tsc -b` → sin errores; `npm run build` → correcto (80 módulos).
+  - **Pruebas:** `npx vitest run` → 7/7 correctas (sin pruebas nuevas dedicadas a esta UI en este
+    bloque — verificación fue manual en navegador, consistente con el resto de las pantallas de
+    Catálogo, que tampoco tienen pruebas de componente todavía).
+  - **Decisiones pendientes de negocio:** ninguna (0, `docs/decisiones-pendientes.md`).
+  - **Continúa / siguiente paso:** cobertura de Frontend vs backend queda al 100% de lo que el
+    backend expone hoy (sin contar `UsuarioSede`, diferida por decisión previa). Servidores de
+    desarrollo (`localhost:5175`/`localhost:5173`) quedaron corriendo en segundo plano para
+    continuar trabajando. Pendiente de que el usuario indique el siguiente foco (posible commit
+    de todo lo acumulado hoy).
+
+- **2026-09-17 (auditoría de calidad/UX de pantallas existentes + 2 correcciones)** — Bloque
+  solicitado explícitamente: tras declinar continuar agregando funcionalidad nueva, el usuario
+  pidió "Revisión/pulido de UX existente". Alcance: solo `frontend/` — sin funcionalidad nueva,
+  solo defectos reales.
+  - **Auditoría (sin escribir código primero):** se revisaron los 55 archivos `.tsx`/`.ts` de
+    `frontend/src` buscando específicamente el mismo patrón de bug encontrado hoy más temprano
+    (texto invisible por falta de clase Tailwind de color explícita, causado por
+    `color-scheme: light dark` en `index.css`) — **no se encontró ninguna instancia nueva**; los
+    4 arreglos de esta mañana y los 2 archivos nuevos de Producto-Proveedor están limpios.
+    Estados de carga (`cargando`), manejo de errores (`try/catch` → `ErrorBanner`), labels de
+    formulario, y el patrón de "editar en línea" se verificaron consistentes en las 55 archivos,
+    sin excepciones. Se encontraron 3 hallazgos menores:
+    1. Barra de navegación (`AppLayout.tsx`) se desborda en pantallas angostas — confirmado
+       directamente durante las pruebas manuales de hoy (nombre de usuario y "Salir" cortados a
+       958px de ancho).
+    2. Botones de "Crear/Agregar" deshabilitados sin `title` explicando el motivo — patrón
+       consistente en toda la app (no una inconsistencia aislada), prioridad baja, **no
+       corregido** (tocarlo solo en un lugar rompería la consistencia).
+    3. `DistribucionRequisicionRow.tsx`: el botón "Guardar" se deshabilita por `cantidadInvalida`
+       sin mensaje visible, a diferencia de su caso hermano `excedeMaximo` (dos líneas abajo) que
+       sí muestra uno.
+  - **Qué se hizo:**
+    - `AppLayout.tsx`: agregado `flex-wrap` al `<nav>` y a su contenedor de enlaces, y `shrink-0`
+      al bloque de usuario/Salir — los enlaces envuelven a una segunda línea en vez de empujar el
+      área de cuenta fuera de la pantalla.
+    - `DistribucionRequisicionRow.tsx`: agregado el mensaje faltante para `cantidadInvalida`
+      ("La cantidad debe ser mayor a 0."), mismo patrón visual (`text-xs text-amber-600`) que el
+      caso `excedeMaximo` ya existente.
+  - **Verificación manual en navegador:** ventana redimensionada a 700px de ancho —
+    confirmado que "Seguridad" pasa a una segunda línea y "Carlos Ramirez / Salir" queda
+    completamente visible en su propia línea, sin corte ni scroll horizontal (antes se cortaba).
+    Requisición #1 (Borrador, periodo 2026-09) → editar distribución "Sede Bogotá Norte" →
+    cantidad `0` → mensaje "La cantidad debe ser mayor a 0." aparece correctamente y el botón
+    Guardar queda deshabilitado.
+  - **Archivos modificados:** `frontend/src/components/AppLayout.tsx`,
+    `frontend/src/components/requisiciones/DistribucionRequisicionRow.tsx`; `progreso.md`.
+  - **Compilación:** `npx tsc -b` → sin errores; `npm run build` → correcto (80 módulos).
+  - **Pruebas:** `npx vitest run` → 7/7 correctas (sin pruebas nuevas dedicadas — verificación
+    manual en navegador para estos 2 ajustes visuales/de UX, consistente con el resto de
+    Catálogo/Requisiciones que tampoco tiene pruebas de componente todavía).
+  - **Decisiones pendientes de negocio:** ninguna (0, `docs/decisiones-pendientes.md`).
+  - **Continúa / siguiente paso:** auditoría de calidad completa, sin hallazgos críticos
+    pendientes. Servidores de desarrollo siguen corriendo en segundo plano. Pendiente de que el
+    usuario indique el siguiente foco (posible commit de todo lo acumulado hoy: P1-2 + P2-1 +
+    cobertura Producto-Proveedor + esta auditoría).
+
+- **2026-09-18 (auditoría de dominio/roles/frontend + TASK-101)** — Bloque solicitado
+  explícitamente por el usuario: auditoría completa (sin tocar código, regla explícita del
+  pedido) seguida de "quiero que en base a esta auditoria me propongas un plan" y "si, opción B"
+  (aprobando la Decisión A del plan). Ver `docs/2026-09-18-auditoria-dominio-roles-frontend.md`
+  para el informe completo (10 secciones + plan de ejecución) — aquí solo el resumen operativo.
+  - **Auditoría (sin código):** 3 investigaciones paralelas de solo lectura — roles/permisos/
+    protección de rutas, modelo de dominio contra `01-reglas-negocio.md`/`02-dominio.md`/
+    `04-base-datos.md`, y contenido real de cada pantalla del Frontend. Hallazgo principal: el
+    backend está correctamente alineado (30 permisos reales, 5 roles ya sembrados exactamente
+    como documenta `06-seguridad.md §53`, sin fuga de datos posible), pero el **Frontend no
+    filtra nada por rol** — hueco ya documentado en el propio código (`AppLayout.tsx`), causado
+    por que el JWT no lleva claims de rol/permiso. También se confirmó que "Solicitante" **no es
+    un concepto nuevo** (RN-060/ADR-063, 2026-09-15) — el hueco es de implementación, no de
+    definición. Se encontraron 2 huecos funcionales reales de dominio (`ProductoProveedor` nunca
+    usado al construir un `PedidoProveedor`; `SolicitudProductoCatalogo` sin ningún enlace a
+    `Requisicion`) y se confirmó que 2 de las preguntas del pedido de auditoría (confirmación de
+    recepción, facturación N:N) **ya eran ambigüedades abiertas y reconocidas** desde antes,
+    no hallazgos nuevos.
+  - **Plan propuesto y aprobado:** Decisión A (única que bloqueaba el arranque) — cómo el
+    Frontend se entera de sus permisos. Recomendé la alternativa B (endpoint de autoconsulta,
+    consultado en vivo) en vez de meter claims en el JWT, por el mismo principio ya decidido en
+    ADR-058 (sin caché de permisos). El usuario aprobó la opción B.
+  - **TASK-101 implementado (backend, sin tocar Frontend todavía):**
+    `ObtenerMisPermisosUseCase` (Application/Organizacion) — misma fuente que
+    `UsuarioTienePermisoUseCase` (`Usuario → UsuarioRol → Rol → RolPermiso → Permiso`), lista
+    vacía si el usuario no tiene rol o está inactivo (denegación por defecto), sin duplicados si
+    dos roles otorgan el mismo permiso. Nuevo endpoint
+    `GET /api/v1/auth/mis-permisos` en `AuthController` — `[Authorize]` sin política de permiso
+    específico (solo exige estar autenticado), vive junto a `/login` porque representa "mi
+    sesión", no un recurso administrado sobre otro usuario.
+  - **Archivos creados:** `docs/2026-09-18-auditoria-dominio-roles-frontend.md`;
+    `backend/src/Application/Organizacion/ObtenerMisPermisosUseCase.cs`;
+    `backend/tests/Application.Tests/ObtenerMisPermisosUseCaseTests.cs` (5 pruebas).
+  - **Archivos modificados:** `backend/src/Application/DependencyInjection.cs`;
+    `backend/src/Api/Controllers/AuthController.cs`;
+    `backend/tests/Api.Tests/AuthFlujoTests.cs` (3 pruebas nuevas: 401 sin JWT, 200 con permisos
+    reales, 200 con lista vacía sin rol); `docs/05-api.md` (§56.3 nuevo); `progreso.md`.
+  - **Compilación:** `dotnet build` → correcta, 0 advertencias, 0 errores.
+  - **Migración:** ninguna (sin cambios de esquema).
+  - **Pruebas:** `dotnet test` → **665/665 correctas, 0 omitidas** (237 Domain.Tests + 256
+    Application.Tests + 172 Api.Tests, +8 respecto al cierre anterior).
+  - **Decisiones pendientes de negocio:** ninguna nueva (0, `docs/decisiones-pendientes.md`) — la
+    Decisión A ya quedó resuelta (opción B), y las Ambigüedades 1/2/3 del informe siguen
+    explícitamente diferidas por decisión del usuario (ver sección 12 del informe).
+  - **Continúa / siguiente paso:** según el plan aprobado, sigue TASK-105 (usar
+    `ProductoProveedor` en `PedidoProveedor`, independiente de TASK-101) y luego TASK-102/103
+    (filtrar navegación y separar la pantalla mixta de Solicitudes de producto, ambas
+    dependientes de TASK-101 ya cerrado). Pendiente de que el usuario indique con cuál seguir.
+
+- **2026-09-18 (TASK-105: usar ProductoProveedor en PedidoProveedor)** — Bloque solicitado
+  explícitamente: "Sigue con TASK-105". Cierra el hallazgo D1/F4 de
+  `docs/2026-09-18-auditoria-dominio-roles-frontend.md`: `ProductoProveedor` existía y era
+  administrable en Catálogo, pero nunca se usaba al construir un `PedidoProveedor`.
+  - **Diseño:** fotografía (snapshot), no una FK nueva — mismo criterio ya usado en
+    `DistribucionEntrega.DireccionEntrega`/`CiudadEntrega`/`ContactoEntrega` (RN-035/ADR-019):
+    si el código se edita después en el catálogo, el pedido ya emitido no debe cambiar
+    retroactivamente. Domain no consulta repositorios (`CLAUDE.md §36`): Application
+    (`AgregarDetallePedidoProveedorUseCase`) resuelve la relación `ProductoProveedor` activa para
+    (producto, proveedor del pedido) y la pasa ya cargada a `PedidoProveedor.AgregarDetalle`,
+    mismo patrón que `Sede` en `AgregarDistribucion`. `Domain.AgregarDetalle` agrega una guarda
+    defensiva: si se le pasa un `ProductoProveedor` de otro proveedor, lanza
+    `ReglaDeNegocioException` (nunca ocurre en la práctica porque Application ya filtra antes,
+    pero protege el invariante si algo cambia en el futuro).
+  - **Qué se hizo:** `DetallePedidoProveedor.CodigoProveedorUtilizado` (nuevo, nullable, snapshot
+    capturado en el constructor); `PedidoProveedor.AgregarDetalle` acepta
+    `ProductoProveedor? productoProveedor = null`; `AgregarDetallePedidoProveedorUseCase` busca la
+    relación vía `IProductoProveedorRepository.ObtenerPorProducto` filtrando por el proveedor del
+    pedido y `Activo`; expuesto en `DetallePedidoProveedorResponse.CodigoProveedorUtilizado`.
+    Migración `AgregarCodigoProveedorUtilizadoADetallePedidoProveedor` (columna nullable, sin
+    cambios destructivos) aplicada a la base de desarrollo. Frontend:
+    `types/pedidoProveedor.ts` (+campo), `PedidoDetalleRow.tsx` (+columna "Código proveedor",
+    "Sin código registrado" en itálica gris cuando es null), `PedidosProveedorPage.tsx`
+    (encabezado de tabla actualizado, colSpan 5→6).
+  - **Verificación manual en navegador** (`localhost:5173`/`localhost:5175`, sesión
+    `admin.frontend@auropaq.dev`): el Pedido #85 (creado antes de esta tarea) muestra
+    correctamente "Sin código registrado" para su detalle existente (columna nueva, dato
+    retroactivo correctamente ausente). Pedido nuevo PP-CODIGO-TEST (#99), mismo proveedor
+    (Distribuidora Andina S.A.S.) que ya tenía una relación `ProductoProveedor` con Papel
+    higiénico (código `PROV-PH-01-EDITADO`, asociado en una sesión anterior) → al agregar el
+    detalle, el código aparece automáticamente en la tabla, sin que el usuario lo ingrese. Sin
+    errores de consola.
+  - **Archivos modificados:** `backend/src/Domain/Entities/{DetallePedidoProveedor,
+    PedidoProveedor}.cs`; `backend/src/Application/PedidosProveedor/
+    AgregarDetallePedidoProveedorUseCase.cs`; `backend/src/Application/PedidosProveedor/
+    Dtos/DetallePedidoProveedorResponse.cs`; `backend/src/Application/PedidosProveedor/
+    PedidoProveedorMapper.cs`; `backend/src/Infrastructure/Persistence/Configurations/
+    DetallePedidoProveedorConfiguration.cs`; migración nueva;
+    `backend/tests/Domain.Tests/PedidoProveedorTests.cs` (+3);
+    `backend/tests/Application.Tests/{CrearPedidoProveedorUseCaseTests,AnularEntregaUseCaseTests,
+    CerrarPedidoProveedorUseCaseTests,CrearEntregaUseCaseTests}.cs` (+3 dedicadas, +4 ajustadas
+    por el nuevo parámetro del constructor); `backend/tests/Api.Tests/
+    PedidosProveedorFlujoTests.cs` (+1); `frontend/src/types/pedidoProveedor.ts`;
+    `frontend/src/components/pedidosProveedor/PedidoDetalleRow.tsx`;
+    `frontend/src/pages/PedidosProveedorPage.tsx`; `docs/05-api.md` (§32);
+    `docs/01-reglas-negocio.md` (RN-041);
+    `docs/2026-09-18-auditoria-dominio-roles-frontend.md` (TASK-105 marcada hecha); `progreso.md`.
+  - **Compilación:** `dotnet build` → correcta, 0 advertencias, 0 errores;
+    `npx tsc -b` (frontend) → sin errores.
+  - **Migración:** `AgregarCodigoProveedorUtilizadoADetallePedidoProveedor` — `ALTER TABLE
+    DetallesPedidoProveedor ADD CodigoProveedorUtilizado nvarchar(max) NULL` — aplicada a la base
+    de desarrollo.
+  - **Pruebas:** `dotnet test` → **672/672 correctas, 0 omitidas** (240 Domain.Tests + 259
+    Application.Tests + 173 Api.Tests, +7 respecto al cierre anterior).
+  - **Decisiones pendientes de negocio:** ninguna nueva (0, `docs/decisiones-pendientes.md`).
+  - **Continúa / siguiente paso:** según el plan aprobado, siguen TASK-102 (filtrar navegación) y
+    TASK-103 (separar la pantalla mixta de Solicitudes de producto), ambas ya desbloqueadas por
+    TASK-101. Pendiente de que el usuario indique con cuál seguir.
+
+- **2026-09-18 (TASK-102: filtrar navegación/rutas por permiso real)** — Bloque solicitado
+  explícitamente: "Quiero que continues con TASK-102". Cierra el hallazgo F1 de
+  `docs/2026-09-18-auditoria-dominio-roles-frontend.md`: el Frontend no filtraba ningún enlace ni
+  ruta por permiso — cualquier usuario autenticado veía las 9 secciones por igual.
+  - **Qué se hizo:**
+    - `types/auth.ts`: tipo `Permiso` (espejo de `PermisoResponse`, `docs/05-api.md §56.3`).
+    - `auth/authService.ts`: `misPermisos()` → `GET /api/v1/auth/mis-permisos` (TASK-101).
+    - `auth/AuthContext.tsx`: nuevo estado `permisos`/`cargandoPermisos`, consultados en un
+      `useEffect` que reacciona a cambios de `usuario` (login, logout, limpieza automática por
+      401) — fuente en vivo, no una copia que pueda desactualizarse (mismo principio de
+      ADR-058). Un fallo de la consulta deja `permisos` vacío (denegación por defecto,
+      `CLAUDE.md §67`), no un estado sin definir. Nuevo helper
+      `tieneAlgunPermiso(...codigos)`.
+    - `routes/enlaces.ts` (nuevo): único lugar donde se declara qué permiso necesita cada
+      sección — usado tanto por `AppLayout.tsx` (filtra el menú) como por `AppRoutes.tsx` (protege
+      la ruta), para que ambos no puedan desincronizarse. El permiso de cada sección se tomó
+      directamente de qué protege cada endpoint que esa pantalla usa (`docs/06-seguridad.md
+      §52/§53`), no inventado.
+    - `routes/RutaConPermiso.tsx` (nuevo): guard por ruta — mientras `cargandoPermisos` es true
+      muestra "Cargando...", si el usuario no tiene ninguno de los permisos requeridos muestra
+      "Sin acceso" (en vez de dejar renderizar un formulario que fallaría con 403 recién al hacer
+      clic). Cubre el caso de navegar directamente a la URL sin pasar por el menú.
+    - `AppLayout.tsx`/`AppRoutes.tsx`: consumen `routes/enlaces.ts` en vez de una lista estática
+      sin filtrar.
+  - **Verificación manual en navegador con las 2 cuentas reales de la matriz** (no solo
+    pruebas automatizadas): `admin.frontend@auropaq.dev` (Administrador) sigue viendo las 9
+    secciones sin cambios. `carlos.taskdemo@auropaq.com` (Solicitante) — al consultar
+    `GET /auth/mis-permisos` directamente se confirmó que esta cuenta de prueba acumuló permisos
+    extra de sesiones de prueba anteriores (`ENTREGA_VER/REGISTRAR/ANULAR`, `PEDIDO_VER`, fuera
+    del set puro de Solicitante de `06-seguridad.md §53`) — **esto es deriva de datos de
+    desarrollo, no un defecto de esta tarea**: el menú mostró exactamente Catálogo/
+    Requisiciones/Solicitudes de producto/Consolidación/Pedidos a proveedor/Entregas
+    (coincide con sus permisos reales, incluidos los heredados), ocultando correctamente
+    Revisión/Facturación/Seguridad (permisos que de verdad no tiene). Navegar directamente a
+    `/seguridad`, `/facturacion` y `/revision` por URL (sin pasar por el menú) mostró "Sin
+    acceso" en los tres casos, no un formulario que fallara después. Sin errores de consola.
+  - **Pruebas automatizadas nuevas** (Vitest + Testing Library, primeras pruebas de componente
+    del proyecto — hasta ahora solo `apiClient.ts` tenía pruebas): `AppLayout.test.tsx` (3 casos,
+    cubre exactamente el criterio de aceptación del audit: Solicitante ve solo 3 secciones,
+    Administrador ve las 9, Gestor_Requisiciones ve Requisiciones+Revisión pero no Seguridad/
+    Facturación — usando los permisos reales de `06-seguridad.md §53`, no inventados);
+    `RutaConPermiso.test.tsx` (3 casos: cargando, con permiso, sin permiso); `AuthContext.test.tsx`
+    (2 casos: carga real de permisos tras login, y denegación por defecto si la consulta falla).
+  - **Archivos creados:** `frontend/src/routes/enlaces.ts`, `frontend/src/routes/
+    RutaConPermiso.tsx`, `frontend/src/routes/RutaConPermiso.test.tsx`,
+    `frontend/src/components/AppLayout.test.tsx`, `frontend/src/auth/AuthContext.test.tsx`.
+  - **Archivos modificados:** `frontend/src/types/auth.ts`, `frontend/src/auth/authService.ts`,
+    `frontend/src/auth/AuthContext.tsx`, `frontend/src/components/AppLayout.tsx`,
+    `frontend/src/routes/AppRoutes.tsx`, `frontend/src/routes/ProtectedRoute.tsx` (comentario);
+    `docs/06-seguridad.md` (§21); `docs/2026-09-18-auditoria-dominio-roles-frontend.md`
+    (TASK-102 marcada hecha); `progreso.md`.
+  - **Compilación:** `npx tsc -b` → sin errores; `npm run build` → correcto (82 módulos).
+  - **Pruebas:** `npx vitest run` → **15/15 correctas** (7 `apiClient.test.ts` + 8 nuevas de esta
+    tarea). Sin cambios de backend en este bloque — sin necesidad de correr la suite de .NET.
+  - **Decisiones pendientes de negocio:** ninguna nueva (0, `docs/decisiones-pendientes.md`).
+  - **Continúa / siguiente paso:** según el plan, sigue TASK-103 (separar la pantalla mixta de
+    `SolicitudesProductoPage.tsx` en vista de Solicitante y vista de Gestor, ya desbloqueada por
+    TASK-101/102). Pendiente de que el usuario indique si continuar.
+
+- **2026-09-18 (TASK-103: separar la pantalla mixta de Solicitudes de producto)** — Bloque
+  solicitado explícitamente: "si, continue con TASK-103". Cierra el hallazgo F2 de
+  `docs/2026-09-18-auditoria-dominio-roles-frontend.md`: el propio código de
+  `SolicitudesProductoPage.tsx` documentaba el defecto ("un Solicitante que abra esta pantalla
+  verá el botón 'Solicitar producto' funcionar y la lista de pendientes fallar con 403, o
+  viceversa").
+  - **Matiz encontrado antes de implementar (no es "mitad Solicitante, mitad Gestor"):**
+    `docs/06-seguridad.md §52` documenta 3 permisos distintos en esta pantalla, no 2 —
+    `PRODUCTO_SOLICITAR` (enviar), `PRODUCTO_VER` (ver la bandeja) y `PRODUCTO_CREAR`
+    (resolver). Y la matriz de roles (`§53`) confirma que Solicitante **sí tiene**
+    `PRODUCTO_VER` — puede ver la bandeja de pendientes, solo no resolverla. Implementar un
+    simple "if Solicitante mostrar A, si Gestor mostrar B" habría sido menos preciso que lo que
+    el propio sistema de permisos ya permite.
+  - **Qué se hizo:** cada bloque de `SolicitudesProductoPage.tsx` ahora se muestra según el
+    permiso real correspondiente (`useAuth().tieneAlgunPermiso`): el formulario "Solicitar
+    producto" requiere `PRODUCTO_SOLICITAR`; la bandeja de pendientes (y su fetch) requiere
+    `PRODUCTO_VER` (si no lo tiene, ni siquiera se llama al endpoint — evita un 403 innecesario,
+    mismo patrón ya usado en `ConsolidacionPage.tsx` con `periodoId`); la columna "Acciones"/
+    botón "Resolver"/`ResolverSolicitudPanel` requieren `PRODUCTO_CREAR`.
+  - **Verificación manual en navegador con las 2 cuentas reales:** `carlos.taskdemo@auropaq.com`
+    (Solicitante, con `PRODUCTO_SOLICITAR`+`PRODUCTO_VER` reales, confirmado vía
+    `GET /auth/mis-permisos` en el bloque de TASK-102) → ve "Solicitar producto" y la bandeja
+    con un dato real (solicitud #98 "Jarrón Persa"), **sin** la columna "Acciones" ni "Resolver".
+    `admin.frontend@auropaq.dev` (Administrador, los 3 permisos) → ve ambos bloques; se probó
+    "Resolver" → abre el panel con las 3 pestañas (Homologar/Crear producto/Rechazar) sin
+    regresión. Sin errores de consola en ningún caso.
+  - **Pruebas automatizadas nuevas:** `SolicitudesProductoPage.test.tsx` (3 casos — Solicitante
+    puro ve formulario+bandeja sin Resolver; Gestor_Requisiciones ve bandeja+Resolver sin
+    formulario; sin `PRODUCTO_VER` no se llama a `listarPendientes` en absoluto).
+  - **Archivos creados:** `frontend/src/pages/SolicitudesProductoPage.test.tsx`.
+  - **Archivos modificados:** `frontend/src/pages/SolicitudesProductoPage.tsx`;
+    `docs/2026-09-18-auditoria-dominio-roles-frontend.md` (TASK-103 marcada hecha); `progreso.md`.
+  - **Compilación:** `npx tsc -b` → sin errores; `npm run build` → correcto (82 módulos). Sin
+    cambios de backend — sin necesidad de correr la suite de .NET.
+  - **Pruebas:** `npx vitest run` → **18/18 correctas** (+3 respecto al cierre de TASK-102).
+  - **Decisiones pendientes de negocio:** ninguna nueva (0, `docs/decisiones-pendientes.md`).
+  - **Continúa / siguiente paso:** con TASK-101/102/103 cerradas, el plan de la auditoría
+    (sección 12) llega al paso 6: enlace simple Requisición → Solicitudes de producto
+    (Alternativa A de la Ambigüedad 1, sin cambiar el modelo de datos), y luego el paso 7
+    (prueba end-to-end final como Solicitante real). Pendiente de que el usuario indique si
+    continuar.
+
+- **2026-09-18 (Pasos 6 y 7 del plan — F3 enlace de navegación + cierre del plan de la
+  auditoría)** — Bloque solicitado explícitamente: "si, continuemos sigun el plan". Cierra los
+  dos últimos pasos de la sección 12 de `docs/2026-09-18-auditoria-dominio-roles-frontend.md`.
+  - **Paso 6 (F3):** `AgregarDetalleForm.tsx` (usado desde `RequisicionesPage.tsx` vía
+    `RequisicionPanel`) ahora tiene un enlace "¿No encuentras el producto? Solicítalo al
+    catálogo" justo debajo del selector de Producto, hacia `/solicitudes-producto` — Alternativa
+    A de la Ambigüedad 1 (sección 8 del informe): navegación simple, sin enlazar la solicitud a
+    la Requisición ni cambiar el modelo de datos. El producto homologado se agrega después
+    manualmente, como cualquier otro producto del catálogo.
+  - **Paso 7 (prueba end-to-end final):** ya estaba cubierto por la verificación de TASK-102
+    (Seguridad/Facturación/Revisión → "Sin acceso" navegando directo por URL como Carlos) — se
+    reconfirmó en este bloque: el menú de Carlos (Solicitante) sigue mostrando exactamente
+    Catálogo/Requisiciones/Solicitudes de producto/Consolidación/Pedidos a proveedor/Entregas
+    (sus permisos reales, incluidos los heredados de pruebas anteriores), sin Revisión/
+    Facturación/Seguridad. Se probó el enlace nuevo en vivo: desde la Requisición #1 de Carlos,
+    clic en "¿No encuentras el producto?" navegó a `/solicitudes-producto`, mostrando el
+    formulario de solicitar sin el botón "Resolver" (comportamiento ya cerrado en TASK-103). Sin
+    errores de consola.
+  - **Archivos modificados:** `frontend/src/components/requisiciones/AgregarDetalleForm.tsx`;
+    `docs/2026-09-18-auditoria-dominio-roles-frontend.md` (plan de la sección 12 cerrado
+    completo); `progreso.md`.
+  - **Compilación:** `npx tsc -b` → sin errores; `npm run build` → correcto (82 módulos).
+  - **Pruebas:** `npx vitest run` → **18/18 correctas** (sin pruebas nuevas dedicadas — el enlace
+    es un cambio de navegación simple, verificado manualmente en navegador; no se tocó lógica de
+    permisos que ya tuviera cobertura).
+  - **Decisiones pendientes de negocio:** ninguna nueva (0, `docs/decisiones-pendientes.md`).
+  - **Continúa / siguiente paso:** con esto se cierra por completo el plan de ejecución de
+    `docs/2026-09-18-auditoria-dominio-roles-frontend.md` (TASK-101 a TASK-103 + pasos 6/7).
+    Quedan abiertos, sin acción tomada por decisión explícita: Ambigüedad 1 en su forma completa
+    (Alternativas B/C, más allá del enlace simple ya implementado), Ambigüedad 2 (confirmación de
+    recepción, "Pendiente 4") y Ambigüedad 3 (facturación N:N) — ninguna se reabre sin que el
+    usuario lo pida. TASK-104/105/106 restantes de la auditoría: TASK-105 ya se cerró antes;
+    TASK-104 depende de decidir la Ambigüedad 1 más allá de la Alternativa A; TASK-106 depende de
+    decidir la Ambigüedad 2. Pendiente de que el usuario indique el siguiente foco de trabajo —
+    posible commit de todo lo acumulado desde el último (P1-2 + P2-1 + cobertura Producto-
+    Proveedor + auditoría de UX + auditoría de dominio/roles/frontend + TASK-101/102/103/105 +
+    pasos 6/7).

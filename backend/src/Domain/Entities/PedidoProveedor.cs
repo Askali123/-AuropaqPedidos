@@ -130,13 +130,24 @@ public sealed class PedidoProveedor
     // (mayor, menor o igual) — ninguna regla documentada restringe esa diferencia ni exige
     // autorización (Pendiente 6 de 01-reglas-negocio.md §14), así que no se valida aquí.
     // detalleConsolidacionOrigen debe pertenecer a la misma Consolidacion de este pedido.
-    public DetallePedidoProveedor AgregarDetalle(int id, DetalleConsolidacion detalleConsolidacionOrigen, int cantidadPedida, decimal? precioUnitario = null)
+    //
+    // productoProveedor (TASK-105): ya resuelto por el llamador (Application) buscando la
+    // relación Producto-Proveedor activa para (detalleConsolidacionOrigen.Producto, Proveedor)
+    // — Domain no consulta repositorios (CLAUDE.md §36), solo recibe la entidad ya cargada,
+    // mismo patrón que Sede en AgregarDistribucion. Null si no existe esa relación todavía.
+    public DetallePedidoProveedor AgregarDetalle(
+        int id, DetalleConsolidacion detalleConsolidacionOrigen, int cantidadPedida, decimal? precioUnitario = null,
+        ProductoProveedor? productoProveedor = null)
     {
         if (detalleConsolidacionOrigen is null || !Consolidacion.Detalles.Contains(detalleConsolidacionOrigen))
             throw new ReglaDeNegocioException("El detalle de consolidación no pertenece a la consolidación de este pedido.");
 
+        if (productoProveedor is not null && productoProveedor.Proveedor != Proveedor)
+            throw new ReglaDeNegocioException("La relación producto-proveedor indicada no corresponde al proveedor de este pedido.");
+
         var detalle = new DetallePedidoProveedor(
-            id, detalleConsolidacionOrigen.Producto, detalleConsolidacionOrigen.CantidadNecesaria, cantidadPedida, precioUnitario);
+            id, detalleConsolidacionOrigen.Producto, detalleConsolidacionOrigen.CantidadNecesaria, cantidadPedida,
+            precioUnitario, productoProveedor);
 
         _detalles.Add(detalle);
         return detalle;

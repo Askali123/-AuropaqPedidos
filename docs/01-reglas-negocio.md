@@ -663,6 +663,16 @@ DetalleConsolidacion
 
 No debe implementarse lógica automática de selección de proveedor mientras no exista una regla empresarial explícita que la justifique.
 
+> **Actualización (2026-09-18, TASK-105):** "el sistema puede mostrar información de los
+> proveedores asociados al producto" ya está implementado — al agregar un detalle a un
+> `PedidoProveedor`, si existe una relación `ProductoProveedor` activa entre el producto y el
+> proveedor ya elegido para ese pedido, su `CodigoProveedor` se captura como fotografía en el
+> detalle (`DetallePedidoProveedor.CodigoProveedorUtilizado`) y se muestra en el Frontend. Sigue
+> sin haber selección automática de proveedor — la selección la sigue haciendo Compras
+> explícitamente, esto solo hace visible la información que ya existía en el catálogo pero nunca
+> se usaba en el flujo de compra (hallazgo D1/F4,
+> `docs/2026-09-18-auditoria-dominio-roles-frontend.md`).
+
 ---
 
 ## RN-042 — CantidadPedida se decide manualmente; sin cálculo automático de empaques o mínimos

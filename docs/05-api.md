@@ -1254,6 +1254,17 @@ No debe modificar las requisiciones originales.
 > implementado — `ListarPedidosProveedorUseCase`/`ObtenerPedidoProveedorUseCase`. `GET
 > /pedidos-proveedor` acepta `consolidacionId` opcional por query string.
 
+> **Actualización (2026-09-18, TASK-105,
+> `docs/2026-09-18-auditoria-dominio-roles-frontend.md`, hallazgo D1/F4):**
+> `POST /pedidos-proveedor/{id}/detalles` ahora resuelve automáticamente, del lado del servidor,
+> si existe una relación `ProductoProveedor` activa entre el producto del detalle y el proveedor
+> del pedido, y la incluye como fotografía (`codigoProveedorUtilizado`, `string | null`) en cada
+> `DetallePedidoProveedorResponse` — sin que el llamador tenga que enviarla. Igual que
+> `CantidadNecesaria`, es un snapshot inmutable: si el código se edita después en el catálogo
+> (`§30`), los pedidos ya creados no cambian retroactivamente (mismo criterio que
+> `DistribucionEntrega`, RN-035/ADR-019). `null` si no existía esa relación al agregar el
+> detalle.
+
 Endpoints implementados:
 
 ```http
@@ -2268,6 +2279,45 @@ No se distingue cuál de los tres ocurrió — evita enumeración de cuentas (`0
 Sin refresh tokens, sin cambio de contraseña, sin recuperación de contraseña, sin logout (JWT es
 stateless, sin revocación implementada) — ninguno fue solicitado en esta tarea. **Actualización
 ("TASK-016", 2026-09-14): dos endpoints ya están protegidos con `[Authorize]`** — ver `§57`.
+
+## 56.3 Mis permisos (agregado 2026-09-18, TASK-101)
+
+```http
+GET /api/v1/auth/mis-permisos
+```
+
+### Objetivo
+
+Autoconsulta: el propio usuario autenticado obtiene la lista de sus permisos reales
+(`Usuario → UsuarioRol → Rol → RolPermiso → Permiso`, misma fuente que `§57`), sin necesitar
+`SEGURIDAD_VER` (que roles como Solicitante no tienen). Nace de
+`docs/2026-09-18-auditoria-dominio-roles-frontend.md` (Decisión A): el JWT sigue sin llevar
+claims de rol/permiso (`§56.1`) — se prefirió este endpoint de solo lectura, consultado en vivo,
+antes que copiar los permisos dentro del JWT, para no arriesgar permisos desactualizados si un
+Administrador cambia el rol de alguien a mitad de sesión (mismo principio de ADR-058: sin caché).
+
+### Autorización
+
+`[Authorize]` sin política de permiso específico — solo exige estar autenticado.
+
+### Respuesta
+
+`200 OK`:
+
+```json
+{
+  "data": [
+    { "id": 3, "codigo": "REQUISICION_CREAR", "nombre": "Crear requisición", "descripcion": null }
+  ]
+}
+```
+
+Lista vacía (`[]`, no error) si el usuario no tiene ningún rol asignado o está inactivo — mismo
+criterio de "denegación por defecto" que `UsuarioTienePermisoUseCase`.
+
+### Errores
+
+`401 Unauthorized` sin JWT válido (`§7.5`).
 
 ---
 

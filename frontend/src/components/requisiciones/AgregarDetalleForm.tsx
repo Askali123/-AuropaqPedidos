@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { Link } from "react-router-dom";
 import { ErrorBanner } from "../ErrorBanner";
 import { SelectorCatalogo } from "./SelectorCatalogo";
 import { ApiRequestError } from "../../services/apiClient";
@@ -69,6 +70,13 @@ export function AgregarDetalleForm({
           }
           mensajeVacio="No hay productos en el catálogo."
         />
+        {/* TASK-103/F3 (docs/2026-09-18-auditoria-dominio-roles-frontend.md, Ambigüedad 1,
+            Alternativa A): enlace de navegación simple, sin vincular la solicitud a esta
+            Requisición — el producto homologado se agrega aquí manualmente después, como
+            cualquier otro producto del catálogo. */}
+        <Link to="/solicitudes-producto" className="mt-1 inline-block text-xs text-blue-600 underline hover:text-blue-800">
+          ¿No encuentras el producto? Solicítalo al catálogo
+        </Link>
       </div>
 
       <div className="flex flex-col gap-1">

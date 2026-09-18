@@ -129,6 +129,7 @@ export function DistribucionRequisicionRow({
         )}
       </div>
 
+      {cantidadInvalida && <p className="mt-1 text-xs text-amber-600">La cantidad debe ser mayor a 0.</p>}
       {excedeMaximo && (
         <p className="mt-1 text-xs text-amber-600">Máximo disponible para esta distribución: {maximoDisponibleParaModificar}.</p>
       )}

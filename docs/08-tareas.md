@@ -211,7 +211,11 @@ El primer objetivo es construir un **vertical slice funcional** del proceso de r
 
 ### Estado
 
-`PENDIENTE`
+`COMPLETADA`
+
+> **Actualización (sincronización 2026-09-17):** informe retroactivo ya existe en `progreso.md`
+> ("Informe de inspección — TASK-001", 2026-09-15), verificado contra `dotnet build`/`dotnet test`
+> reales — ver `CLAUDE.md §50` sobre por qué el informe se escribió en retrospectiva.
 
 ### Objetivo
 
@@ -258,7 +262,11 @@ Implementar funcionalidades.
 
 ### Estado
 
-`PENDIENTE`
+`COMPLETADA`
+
+> **Actualización (sincronización 2026-09-17):** `backend/src/{Domain,Application,Infrastructure,
+> Api}` existen como proyectos separados con responsabilidades claras; Domain sin dependencias de
+> infraestructura; la solución compila sin advertencias.
 
 ### Objetivo
 
@@ -294,7 +302,11 @@ Implementar entidades de negocio.
 
 ### Estado
 
-`PENDIENTE`
+`COMPLETADA`
+
+> **Actualización (sincronización 2026-09-17):** `AuropaqPedidosDbContext` (EF Core 10 + SQL
+> Server) configurado y registrado por DI; la cadena de conexión no está hardcodeada en código
+> fuente (ver TASK-062).
 
 ### Objetivo
 
@@ -320,7 +332,12 @@ Preparar Entity Framework Core y SQL Server.
 
 ### Estado
 
-`PENDIENTE`
+`COMPLETADA`
+
+> **Actualización (sincronización 2026-09-17):** mecanismo de migraciones EF Core en uso activo y
+> probado desde el inicio del proyecto — la migración más reciente,
+> `AgregarUsuarioCreacionIdAPedidoEntregaFactura` (2026-09-17), confirma que crear/aplicar/
+> actualizar sigue funcionando end-to-end.
 
 ### Objetivo
 
@@ -350,7 +367,11 @@ Actualizar base de datos
 
 ### Estado
 
-`PENDIENTE`
+`COMPLETADA`
+
+> **Actualización (sincronización 2026-09-17):** `Domain.Tests`/`Application.Tests`/`Api.Tests`
+> configurados y ejecutándose de forma automatizada (`dotnet test`), Api.Tests contra SQL Server
+> real vía `WebApplicationFactory`. Suite actual: 657/657 correctas, 0 omitidas.
 
 ### Objetivo
 
@@ -376,7 +397,11 @@ Debe existir al menos una prueba ejecutable que confirme que el entorno de prueb
 
 ### Estado
 
-`PENDIENTE`
+`COMPLETADA`
+
+> **Actualización (sincronización 2026-09-17):** `Empresa` (Domain) + CRUD real —
+> `POST/GET/GET{id}/PUT /api/v1/empresas`, `[Authorize(Policy="Permiso:ORGANIZACION_VER/
+> ADMINISTRAR")]`.
 
 ### Objetivo
 
@@ -421,7 +446,10 @@ Roles y autenticación completa.
 
 ### Estado
 
-`PENDIENTE`
+`COMPLETADA`
+
+> **Actualización (sincronización 2026-09-17):** `Sede` (Domain, `Empresa 1 ─── N Sede`) +
+> `POST /empresas/{id}/sedes`, `PUT /sedes/{id}`, misma política que TASK-006.
 
 ### Objetivo
 
@@ -618,7 +646,11 @@ La autorización no debe depender de nombres de personas.
 
 ### Estado
 
-`PENDIENTE`
+`COMPLETADA`
+
+> **Actualización (sincronización 2026-09-17):** CRUD real de Categoría, protegido por
+> `PRODUCTO_VER/CREAR/EDITAR` (agrupada bajo `PRODUCTO_*`, RN-059, mismo criterio que
+> UnidadMedida).
 
 ### Objetivo
 
@@ -641,7 +673,10 @@ La lista definitiva debe ser configurable.
 
 ### Estado
 
-`PENDIENTE`
+`COMPLETADA`
+
+> **Actualización (sincronización 2026-09-17):** CRUD real de UnidadMedida, misma política
+> `PRODUCTO_VER/CREAR/EDITAR` que TASK-014.
 
 ### Objetivo
 
@@ -662,7 +697,10 @@ PAQUETE
 
 ### Estado
 
-`PENDIENTE`
+`COMPLETADA`
+
+> **Actualización (sincronización 2026-09-17):** CRUD real de Producto, con 404 explícito cuando
+> `CategoriaId`/`UnidadMedidaId` no existen.
 
 ### Objetivo
 
@@ -688,7 +726,11 @@ No todos los nombres enviados por una filial deben convertirse automáticamente 
 
 ### Estado
 
-`PENDIENTE`
+`COMPLETADA`
+
+> **Actualización (sincronización 2026-09-17):** `SolicitudProductoCatalogo` implementada con las
+> tres resoluciones (Homologar/Crear/Rechazar, RN-024/025/026), permisos
+> `PRODUCTO_SOLICITAR/VER/CREAR`.
 
 ### Objetivo
 
@@ -723,7 +765,10 @@ Debe conservarse:
 
 ### Estado
 
-`PENDIENTE`
+`COMPLETADA`
+
+> **Actualización (sincronización 2026-09-17):** CRUD real de Proveedor, protegido por
+> `PROVEEDOR_VER/CREAR/EDITAR`.
 
 ### Objetivo
 
@@ -739,7 +784,10 @@ Generar pedidos.
 
 ### Estado
 
-`PENDIENTE`
+`COMPLETADA`
+
+> **Actualización (sincronización 2026-09-17):** `ProductoProveedor` implementada (migración
+> `AgregarProductoProveedor`, cerrada 2026-09-15).
 
 ### Objetivo
 
@@ -768,7 +816,10 @@ Reducir la búsqueda y homologación manual de códigos del proveedor.
 
 ### Estado
 
-`PENDIENTE`
+`COMPLETADA`
+
+> **Actualización (sincronización 2026-09-17):** CRUD real de Periodo (sin `PUT`, no documentado
+> como necesidad separada), protegido por `PERIODO_VER/CREAR`.
 
 ### Objetivo
 
@@ -790,7 +841,10 @@ Una empresa no puede tener más de una requisición mensual para el mismo period
 
 ### Estado
 
-`PENDIENTE`
+`COMPLETADA`
+
+> **Actualización (sincronización 2026-09-17):** `Periodo.EstaDentroDeVentanaDeSolicitud()`
+> (Domain), usada como guarda en `EnviarRequisicionUseCase` (RN-006/RN-015, ver también RN-061).
 
 ### Objetivo
 
@@ -820,7 +874,10 @@ Ventana:
 
 ### Estado
 
-`PENDIENTE`
+`COMPLETADA`
+
+> **Actualización (sincronización 2026-09-17):** `IniciarOContinuarRequisicionUseCase` — evita
+> duplicados vía `ObtenerPorEmpresaYPeriodo` (RN-019, `CLAUDE.md §19`).
 
 ### Objetivo
 
@@ -858,7 +915,10 @@ El sistema no debe crear duplicados.
 
 ### Estado
 
-`PENDIENTE`
+`COMPLETADA`
+
+> **Actualización (sincronización 2026-09-17):** `Requisicion.AgregarDetalle()`, protegido por
+> `REQUISICION_CREAR` + `AlcanceRequisicionAuthorizationHandler` (alcance por empresa).
 
 ### Objetivo
 
@@ -885,7 +945,10 @@ Observación opcional
 
 ### Estado
 
-`PENDIENTE`
+`COMPLETADA`
+
+> **Actualización (sincronización 2026-09-17):** `Requisicion.ModificarCantidadDetalle()`/
+> `ModificarObservacionDetalle()` + endpoint `PUT`, solo mientras `EsEditable`.
 
 ### Objetivo
 
@@ -903,7 +966,10 @@ Permitir modificar un producto mientras la requisición esté editable.
 
 ### Estado
 
-`PENDIENTE`
+`COMPLETADA`
+
+> **Actualización (sincronización 2026-09-17):** `Requisicion.EliminarDetalle()` + endpoint
+> `DELETE`, solo mientras `EsEditable`.
 
 ### Objetivo
 
@@ -919,7 +985,10 @@ No eliminar silenciosamente información que ya forme parte de un proceso cerrad
 
 ### Estado
 
-`PENDIENTE`
+`COMPLETADA`
+
+> **Actualización (sincronización 2026-09-17):** `Requisicion.AgregarDistribucion()` valida que
+> la sede pertenezca a la misma empresa (RN-002).
 
 ### Objetivo
 
@@ -962,7 +1031,11 @@ No puede enviarse una requisición con una distribución inválida.
 
 ### Estado
 
-`PENDIENTE`
+`COMPLETADA`
+
+> **Actualización (sincronización 2026-09-17):** `Requisicion.Enviar()` valida detalle existente,
+> empresa activa, ventana de solicitud (RN-061) y distribución completa (RN-011) antes de
+> permitir el envío.
 
 ### Objetivo
 
@@ -986,7 +1059,10 @@ Validar que una requisición esté completa antes de enviarla.
 
 ### Estado
 
-`PENDIENTE`
+`COMPLETADA`
+
+> **Actualización (sincronización 2026-09-17):** `GuardarBorradorRequisicionUseCase` +
+> `POST /requisiciones/{id}/guardar`, diferenciado explícitamente de Enviar (`CLAUDE.md §20`).
 
 ### Objetivo
 
@@ -1008,7 +1084,10 @@ BORRADOR
 
 ### Estado
 
-`PENDIENTE`
+`COMPLETADA`
+
+> **Actualización (sincronización 2026-09-17):** `EnviarRequisicionUseCase`, protegido por
+> `REQUISICION_ENVIAR` + alcance por empresa.
 
 ### Objetivo
 
@@ -1038,7 +1117,10 @@ Una requisición enviada entra formalmente al flujo de revisión.
 
 ### Estado
 
-`PENDIENTE`
+`COMPLETADA`
+
+> **Actualización (sincronización 2026-09-17):** `HistorialRequisicion` se registra en cada
+> transición de estado y se expone en `RequisicionResponse.Historial`.
 
 ### Objetivo
 
@@ -1074,7 +1156,10 @@ Debe conservar:
 
 ### Estado
 
-`PENDIENTE`
+`COMPLETADA`
+
+> **Actualización (sincronización 2026-09-17):** `GET /requisiciones/pendientes-revision`,
+> protegido por `REQUISICION_VER`.
 
 ### Objetivo
 
@@ -1090,7 +1175,10 @@ El resultado debe respetar permisos y alcance.
 
 ### Estado
 
-`PENDIENTE`
+`COMPLETADA`
+
+> **Actualización (sincronización 2026-09-17):** `GET /requisiciones/{id}` y
+> `GET /requisiciones` ("mis requisiciones"), ambos con alcance por empresa.
 
 ### Objetivo
 
@@ -1114,7 +1202,10 @@ Debe incluir:
 
 ### Estado
 
-`PENDIENTE`
+`COMPLETADA`
+
+> **Actualización (sincronización 2026-09-17):** `Requisicion.Aprobar()` +
+> `POST /requisiciones/{id}/aprobar`, protegido por `REQUISICION_APROBAR` + alcance.
 
 ### Objetivo
 
@@ -1148,7 +1239,10 @@ APROBADA
 
 ### Estado
 
-`PENDIENTE`
+`COMPLETADA`
+
+> **Actualización (sincronización 2026-09-17):** `Requisicion.Devolver()` +
+> `POST /requisiciones/{id}/devolver`, protegido por `REQUISICION_DEVOLVER` + alcance.
 
 ### Objetivo
 
@@ -1172,7 +1266,11 @@ DEVUELTA
 
 ### Estado
 
-`PENDIENTE`
+`COMPLETADA`
+
+> **Actualización (sincronización 2026-09-17):** el estado `DEVUELTA` reutiliza
+> `EnviarRequisicionUseCase` para el reenvío; probado en
+> `Requisicion_devuelta_puede_corregirse_y_reenviarse`.
 
 ### Objetivo
 
@@ -1586,9 +1684,12 @@ Acción explícita de un usuario autorizado
 
 ### Estado
 
-`EN_DESARROLLO`
+`COMPLETADA`
 
 > **Actualización (implementación 2026-09-14, bajo la etiqueta "TASK-015" usada por el usuario para pedir este bloque — distinta de la `TASK-015 — Unidad de medida` de este catálogo, sin relación entre ambas):** Autenticación JWT propia implementada. Mecanismo elegido explícitamente por el usuario (JWT emitido por esta misma API, no proveedor externo) tras auditoría que confirmó que ninguna decisión estaba tomada (`06-seguridad.md §4/§30/§31` la diferían explícitamente) — ver ADR-057 (`07-decisiones-arquitectura.md`). `Usuario` gana `PasswordHash` (hasheado con `PasswordHasher<T>`, RN-056). `POST /api/v1/auth/login` (`05-api.md §56`) valida correo+password+`Activo`, emite JWT (claims: `sub`/`email`/`name`/`empresaId`, sin roles/permisos). Sin `[Authorize]` en ningún controller — autorización es `TASK-049`/`050`, no tocada.
+>
+> **Actualización (sincronización 2026-09-17):** sin cambios ni huecos conocidos desde la
+> implementación original — pasa a `COMPLETADA`.
 
 ### Objetivo
 
@@ -1610,9 +1711,16 @@ La tecnología concreta de autenticación debe definirse antes de implementar es
 
 ### Estado
 
-`EN_DESARROLLO`
+`COMPLETADA`
 
 > **Actualización (implementación 2026-09-14, bajo la etiqueta "TASK-016" usada por el usuario para pedir este bloque):** Autorización por permiso implementada — `IAuthorizationPolicyProvider` dinámico sobre `Permiso.Codigo` (ver ADR-058), consultando `Usuario → UsuarioRol → Rol → RolPermiso → Permiso` en cada request (fuente de verdad = BD, sin caché). Dos endpoints reales protegidos: `POST /requisiciones/{id}/enviar` (`REQUISICION_ENVIAR`) y `POST /requisiciones/{id}/aprobar` (`REQUISICION_APROBAR`) — únicos con algún respaldo documental (`06-seguridad.md §52`). No depende de nombres de rol (`[Authorize(Roles=...)]` no se usó). `TASK-050` (autorización por alcance — empresa/sede) sigue sin implementarse.
+>
+> **Actualización (sincronización 2026-09-17):** la nota anterior quedó desactualizada en su
+> alcance — hoy **todos** los controllers del proyecto (no solo los 2 endpoints originales de
+> Requisición) exigen `[Authorize(Policy="Permiso:...")]` real, incluidos los agregados hoy
+> (Consolidación/Pedido/Entrega/Factura, RN-063/ADR-066), más un `FallbackPolicy` global en
+> `Program.cs` que exige usuario autenticado por defecto en cualquier endpoint sin
+> `[Authorize]`/`[AllowAnonymous]` explícito.
 
 ### Objetivo
 
@@ -1628,9 +1736,14 @@ No depender únicamente de nombres de roles.
 
 ### Estado
 
-`EN_DESARROLLO`
+`COMPLETADA`
 
 > **Actualización (implementación 2026-09-14, bajo la etiqueta "TASK-050" usada por el usuario para pedir este bloque):** Alcance por **empresa** implementado para `POST /requisiciones/{id}/enviar` y `POST /requisiciones/{id}/aprobar` (`Usuario.Empresa.Id == Requisicion.Empresa.Id`, ver RN-058/ADR-059) — mismo mecanismo de TASK-016 (`IAuthorizationPolicyProvider`/`AuthorizationHandler`), apilado como un segundo `[Authorize]`. Como efecto colateral necesario, el actor de negocio de esos dos endpoints pasó de `X-Usuario-Id` al `UsuarioId` del JWT (decisión explícita del usuario). **Alcance por sede NO implementado — decisión explícita del usuario (2026-09-14), no una ambigüedad abierta**: presentadas las alternativas (todas las sedes tocadas / alguna / posponer), se decidió mantener únicamente alcance por Empresa por ahora (ver `06-seguridad.md §13`). Alcance por "recurso"/"responsabilidad" más allá de empresa tampoco se implementó (sin contrato documentado).
+>
+> **Actualización (sincronización 2026-09-17):** el alcance por empresa ya cubre todos los
+> endpoints de Requisición (`TASK-032` incluido). Pedido/Entrega/Factura/Consolidación
+> **no** llevan alcance por empresa por diseño (`CLAUDE.md §27`: pueden abarcar varias empresas),
+> no por un hueco pendiente. Objetivo cumplido dentro del alcance decidido — pasa a `COMPLETADA`.
 
 ### Objetivo
 
@@ -1644,6 +1757,16 @@ Limitar el acceso según:
 ---
 
 # TASK-051 — Protección contra manipulación de IDs
+
+### Estado
+
+`COMPLETADA`
+
+> **Actualización (sincronización 2026-09-17):** cubierta por el mismo mecanismo de TASK-050 —
+> `AlcanceRequisicionAuthorizationHandler` rechaza el acceso a una Requisición de otra empresa
+> aunque el ID exista y el usuario tenga el permiso base. Prueba de regresión dedicada:
+> `AutorizacionFlujoTests.Enviar_con_jwt_valido_permiso_pero_de_otra_empresa_devuelve_403`
+> (generaliza el ejemplo `GET /requisiciones/123` de este TASK).
 
 ### Objetivo
 
@@ -1663,6 +1786,17 @@ Debe verificarse que el usuario tenga autorización sobre la requisición `123`.
 
 ## TASK-052 — Pruebas de reglas de negocio
 
+### Estado
+
+`COMPLETADA`
+
+> **Actualización (sincronización 2026-09-17):** cubierta por `Domain.Tests`/`Application.Tests`
+> (488 pruebas). Confirmados por nombre exacto dos de los seis ejemplos de este TASK:
+> `No_permite_enviar_fuera_de_la_ventana_del_periodo`,
+> `No_permite_agregar_detalle_a_una_requisicion_aprobada` — el resto (unicidad de periodo,
+> distribución/cantidad inválida, usuario sin permiso) está cubierto por la suite existente,
+> aunque no se verificó ejemplo por ejemplo en esta sincronización.
+
 ### Objetivo
 
 Cubrir reglas críticas mediante pruebas automatizadas.
@@ -1680,6 +1814,14 @@ Cubrir reglas críticas mediante pruebas automatizadas.
 
 # TASK-053 — Pruebas de API
 
+### Estado
+
+`COMPLETADA`
+
+> **Actualización (sincronización 2026-09-17):** `Api.Tests` (169 pruebas) — integración HTTP
+> real vía `WebApplicationFactory` contra SQL Server, cubriendo códigos de estado, validación,
+> autorización y errores en todos los controllers.
+
 ### Objetivo
 
 Validar:
@@ -1695,6 +1837,14 @@ Validar:
 
 # TASK-054 — Manejo centralizado de errores
 
+### Estado
+
+`COMPLETADA`
+
+> **Actualización (sincronización 2026-09-17):** `src/Api/ErrorHandling/
+> ExcepcionesDeNegocioHandler.cs`, cableado en `Program.cs` — respuesta de error consistente,
+> sin exponer stack traces ni detalles internos.
+
 ### Objetivo
 
 Implementar una estrategia consistente para errores de API.
@@ -1707,6 +1857,14 @@ Las excepciones no deben terminar exponiendo información interna innecesaria.
 
 # TASK-055 — Logging
 
+### Estado
+
+`COMPLETADA`
+
+> **Actualización (sincronización 2026-09-17):** `ILogger<T>` agregado a los casos de uso de
+> operaciones de negocio relevantes (Requisición Enviar/Aprobar/Devolver, PedidoProveedor Crear/
+> Cerrar/Cancelar, Entrega Crear/Anular, Factura Registrar/Anular), cerrado 2026-09-15.
+
 ### Objetivo
 
 Registrar información suficiente para diagnosticar problemas.
@@ -1718,6 +1876,18 @@ No registrar secretos ni información sensible innecesaria.
 ---
 
 # TASK-056 — Auditoría
+
+### Estado
+
+`COMPLETADA`
+
+> **Actualización (sincronización 2026-09-17):** `Auditoria` (Domain) + `IAuditoriaRepository`,
+> cableados en `CrearEntregaUseCase`, `CrearPedidoProveedorUseCase` y `AsignarRolAUsuarioUseCase`
+> (creación de pedido, registro de entrega, cambios administrativos — 3 de los 6 ejemplos). Los
+> otros dos ejemplos de esta lista (aprobación/devolución de Requisición) **no** usan `Auditoria`
+> — usan `HistorialRequisicion` (TASK-030), que ya cumple el mismo objetivo de trazabilidad para
+> esa entidad específica; no es un hueco, es una decisión de diseño existente (mecanismos
+> distintos para conceptos distintos, no una duplicación).
 
 ### Objetivo
 
@@ -1740,6 +1910,15 @@ Estas tareas solo deben realizarse cuando exista evidencia de necesidad.
 
 ## TASK-057 — Analizar consultas lentas
 
+### Estado
+
+`BLOQUEADA`
+
+> **Actualización (sincronización 2026-09-17):** sin evidencia real de necesidad (`CLAUDE.md
+> §44`) — la base de datos de desarrollo es demasiado pequeña para medir nada representativo, y
+> no existe tráfico de producción. No es trabajo pendiente por hacer, es una tarea que su propia
+> regla documentada dice que no debe iniciarse todavía.
+
 ### Objetivo
 
 Identificar consultas con problemas reales de rendimiento.
@@ -1747,6 +1926,13 @@ Identificar consultas con problemas reales de rendimiento.
 ---
 
 ## TASK-058 — Índices
+
+### Estado
+
+`BLOQUEADA`
+
+> **Actualización (sincronización 2026-09-17):** depende de TASK-057 (sin evidencia de qué
+> consulta necesitaría un índice) — mismo bloqueo.
 
 ### Objetivo
 
@@ -1760,6 +1946,13 @@ No crear índices indiscriminadamente.
 
 ## TASK-059 — Paginación y filtrado
 
+### Estado
+
+`BLOQUEADA`
+
+> **Actualización (sincronización 2026-09-17):** sin volumen de datos que lo justifique todavía
+> — mismo criterio de la Fase 12.
+
 ### Objetivo
 
 Implementar paginación, filtros y ordenamiento donde el volumen de información lo justifique.
@@ -1767,6 +1960,13 @@ Implementar paginación, filtros y ordenamiento donde el volumen de información
 ---
 
 ## TASK-060 — Optimización
+
+### Estado
+
+`BLOQUEADA`
+
+> **Actualización (sincronización 2026-09-17):** depende de TASK-057–059 — sin cuello de botella
+> identificado, no hay nada que optimizar (`CLAUDE.md §44`: medir antes de optimizar).
 
 ### Objetivo
 
@@ -1790,6 +1990,16 @@ Medir nuevamente
 
 ## TASK-061 — Configuración por ambientes
 
+### Estado
+
+`EN_DESARROLLO`
+
+> **Actualización (sincronización 2026-09-17):** Development y Testing ya están separados y
+> funcionando (`appsettings.Development.json` sin secretos; `Api.Tests` usa su propia cadena de
+> conexión aislada vía `ApiWebApplicationFactory`, ver `03-arquitectura.md §42`). **Falta
+> Production** — no existe `appsettings.Production.json` ni ninguna configuración de ese
+> ambiente; bloqueado por la misma decisión de entorno que TASK-063/064, no por falta de trabajo.
+
 ### Objetivo
 
 Separar configuración entre:
@@ -1804,6 +2014,14 @@ Production
 
 # TASK-062 — Variables de entorno y secretos
 
+### Estado
+
+`COMPLETADA`
+
+> **Actualización (sincronización 2026-09-17):** `appsettings.json` base no contiene secretos
+> (solo `Logging`/`AllowedHosts`); `Jwt:Key` de desarrollo se maneja vía `dotnet user-secrets`
+> (`UserSecretsId` = `auropaqpedidos-api-dev`), no en código fuente.
+
 ### Objetivo
 
 Evitar secretos dentro del código fuente.
@@ -1812,6 +2030,14 @@ Evitar secretos dentro del código fuente.
 
 # TASK-063 — Build de producción
 
+### Estado
+
+`BLOQUEADA`
+
+> **Actualización (sincronización 2026-09-17):** depende de TASK-061 (configuración de
+> Production), que a su vez depende de una decisión de entorno que el equipo todavía no ha
+> tomado. Sin Dockerfile ni configuración de build de producción en el repositorio.
+
 ### Objetivo
 
 Preparar backend y frontend para construcción de producción.
@@ -1819,6 +2045,15 @@ Preparar backend y frontend para construcción de producción.
 ---
 
 # TASK-064 — Despliegue
+
+### Estado
+
+`BLOQUEADA`
+
+> **Actualización (sincronización 2026-09-17):** sin Dockerfile, sin configuración de CI/CD y sin
+> decisión de entorno de despliegue — exactamente lo que este TASK ya anticipaba ("la
+> infraestructura concreta debe decidirse según el entorno disponible"). No hay nada que
+> implementar hasta que exista esa decisión.
 
 ### Objetivo
 

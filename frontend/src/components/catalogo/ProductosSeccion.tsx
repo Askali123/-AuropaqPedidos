@@ -1,20 +1,24 @@
-import { useState } from "react";
+import { Fragment, useState } from "react";
 import { ErrorBanner } from "../ErrorBanner";
+import { ProductoProveedorPanel } from "./ProductoProveedorPanel";
 import { SelectorCatalogo } from "../requisiciones/SelectorCatalogo";
 import { useConsultaLista } from "../../hooks/useConsultaLista";
 import { ApiRequestError } from "../../services/apiClient";
 import { catalogosService } from "../../services/catalogosService";
-import type { Categoria, Producto, UnidadMedida } from "../../types/catalogos";
+import type { Categoria, Producto, Proveedor, UnidadMedida } from "../../types/catalogos";
 
 // docs/05-api.md §13. CategoriaId/UnidadMedidaId son obligatorios (RN-021, invariante de Domain)
 // tanto al crear como al editar — por eso este componente carga las listas de Categoría/
 // UnidadMedida (CategoriasSeccion/UnidadesMedidaSeccion cubren su propia alta; aquí solo se
-// seleccionan). Sin DELETE: no existe en el backend.
+// seleccionan). Sin DELETE: no existe en el backend. Panel expandible por fila con sus
+// asociaciones Producto-Proveedor (ProductoProveedorPanel, §30/TASK-019, CLAUDE.md §23) — mismo
+// patrón que EmpresasSeccion/SedesPanel.
 export function ProductosSeccion() {
   const [version, setVersion] = useState(0);
   const productos = useConsultaLista(() => catalogosService.listarProductos(), [version]);
   const categorias = useConsultaLista<Categoria>(() => catalogosService.listarCategorias(), []);
   const unidades = useConsultaLista<UnidadMedida>(() => catalogosService.listarUnidadesMedida(), []);
+  const proveedores = useConsultaLista<Proveedor>(() => catalogosService.listarProveedores(), []);
 
   const [formAbierto, setFormAbierto] = useState(false);
   const [nombre, setNombre] = useState("");
@@ -26,6 +30,7 @@ export function ProductosSeccion() {
   const [errorCrear, setErrorCrear] = useState<ApiRequestError | null>(null);
 
   const [editandoId, setEditandoId] = useState<number | null>(null);
+  const [expandidoId, setExpandidoId] = useState<number | null>(null);
 
   async function crearProducto(evento: React.FormEvent) {
     evento.preventDefault();
@@ -157,39 +162,56 @@ export function ProductosSeccion() {
               </tr>
             </thead>
             <tbody>
-              {productos.datos.map((producto) =>
-                editandoId === producto.id ? (
-                  <FilaEdicion
-                    key={producto.id}
-                    producto={producto}
-                    categorias={categorias.datos}
-                    unidades={unidades.datos}
-                    onCancelar={() => setEditandoId(null)}
-                    onGuardado={() => {
-                      setEditandoId(null);
-                      setVersion((v) => v + 1);
-                    }}
-                  />
-                ) : (
-                  <tr key={producto.id} className="border-b border-slate-100">
-                    <td className="px-4 py-2 text-slate-900">{producto.id}</td>
-                    <td className="px-4 py-2 text-slate-900">{producto.nombre}</td>
-                    <td className="px-4 py-2 text-slate-900">{producto.codigoInterno ?? "—"}</td>
-                    <td className="px-4 py-2 text-slate-900">{producto.categoriaNombre}</td>
-                    <td className="px-4 py-2 text-slate-900">{producto.unidadMedidaCodigo}</td>
-                    <td className="px-4 py-2 text-slate-900">{producto.activo ? "Sí" : "No"}</td>
-                    <td className="px-4 py-2">
-                      <button
-                        type="button"
-                        onClick={() => setEditandoId(producto.id)}
-                        className="text-xs font-medium text-blue-600 underline hover:text-blue-800"
-                      >
-                        Editar
-                      </button>
-                    </td>
-                  </tr>
-                ),
-              )}
+              {productos.datos.map((producto) => (
+                <Fragment key={producto.id}>
+                  {editandoId === producto.id ? (
+                    <FilaEdicion
+                      producto={producto}
+                      categorias={categorias.datos}
+                      unidades={unidades.datos}
+                      onCancelar={() => setEditandoId(null)}
+                      onGuardado={() => {
+                        setEditandoId(null);
+                        setVersion((v) => v + 1);
+                      }}
+                    />
+                  ) : (
+                    <tr className="border-b border-slate-100">
+                      <td className="px-4 py-2 text-slate-900">{producto.id}</td>
+                      <td className="px-4 py-2 text-slate-900">{producto.nombre}</td>
+                      <td className="px-4 py-2 text-slate-900">{producto.codigoInterno ?? "—"}</td>
+                      <td className="px-4 py-2 text-slate-900">{producto.categoriaNombre}</td>
+                      <td className="px-4 py-2 text-slate-900">{producto.unidadMedidaCodigo}</td>
+                      <td className="px-4 py-2 text-slate-900">{producto.activo ? "Sí" : "No"}</td>
+                      <td className="px-4 py-2">
+                        <div className="flex items-center gap-3">
+                          <button
+                            type="button"
+                            onClick={() => setEditandoId(producto.id)}
+                            className="text-xs font-medium text-blue-600 underline hover:text-blue-800"
+                          >
+                            Editar
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => setExpandidoId(expandidoId === producto.id ? null : producto.id)}
+                            className="text-xs font-medium text-blue-600 underline hover:text-blue-800"
+                          >
+                            {expandidoId === producto.id ? "Ocultar proveedores" : "Ver proveedores"}
+                          </button>
+                        </div>
+                      </td>
+                    </tr>
+                  )}
+                  {expandidoId === producto.id && (
+                    <tr>
+                      <td colSpan={7} className="bg-slate-50 px-4 py-3">
+                        <ProductoProveedorPanel producto={producto} proveedores={proveedores.datos} />
+                      </td>
+                    </tr>
+                  )}
+                </Fragment>
+              ))}
               {productos.datos.length === 0 && (
                 <tr>
                   <td colSpan={7} className="px-4 py-3 text-sm text-slate-500">

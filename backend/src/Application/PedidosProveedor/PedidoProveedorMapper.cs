@@ -34,6 +34,7 @@ internal static class PedidoProveedorMapper
             CantidadNecesaria: detalle.CantidadNecesaria,
             CantidadPedida: detalle.CantidadPedida,
             PrecioUnitario: detalle.PrecioUnitario,
+            CodigoProveedorUtilizado: detalle.CodigoProveedorUtilizado,
             Distribuciones: detalle.Distribuciones.Select(ADistribucionResponse).ToList());
     }
 
